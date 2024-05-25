@@ -1,0 +1,49 @@
+[package]
+name = "mssql"
+version = "0.1.12"
+authors = ["gaoqiangz"]
+edition = "2021"
+description = "Microsoft SQL Server Client"
+repository = "https://git.kintree.work/rust/mssql"
+include = ["/Cargo.toml", "/src/**"]
+publish = ["kintree"]
+
+[dependencies]
+
+# kintree
+
+bb8 = { version = "0.8.0-rc.1", git = "https://github.com/gaoqiangz/bb8" }
+tiberius = { version = "0.12.2-rc.1", features = [
+    "chrono",
+    "tds73",
+    "rust_decimal",
+    "sql-browser-tokio",
+], git = "https://github.com/gaoqiangz/tiberius" }
+
+# crates.io
+
+tracing = "0.1.37"
+thiserror = "1.0.10"
+regex = "1.3.4"
+lazy_static = "1.4.0"
+#bb8 = "0.7.0"
+async-trait = "0.1.42"
+futures-util = "0.3.12"
+tokio = { version = "1.1.0", features = [
+    "net",
+    "io-util",
+    "rt-multi-thread",
+    "macros",
+] }
+tokio-util = { version = "0.6.2", features = ["compat"] }
+rust_decimal = "1.10.3"
+futures = "0.3.16"
+serde = "1.0.130"
+chrono = { version = "0.4.10", features = ["serde"] }
+uuid = { version = "1.0", features = ["serde"] }
+
+[dev-dependencies]
+tracing-subscriber = "0.3.16"
+tokio = { version = "1.2.0", features = ["full"] }
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = { version = "1.0.47", features = ["preserve_order"] }

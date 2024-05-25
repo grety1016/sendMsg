@@ -1,0 +1,17 @@
+[package]
+name = "sendmsg"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+##tokio crate async runtime
+tokio = {version = "1.37.0",features = ["full"]}
+##序列化与反序列化crate,添加“derive”使其#[derive(Serialize,Deserialize)]可用
+serde = { version = "1.0.130", features = ["derive"]}
+serde_json = { version = "1.0.116"}
+###request
+httprequest = { package = "reqwest",version = "0.12.4",features = ["json"]}
+##增加mssql
+mssql = { path = "mssql"}
