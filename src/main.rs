@@ -6,6 +6,8 @@ use httprequest::Client;
 use std::{collections::HashMap, result};
 //系列化
 use serde::{Serialize,Deserialize};
+//引入数据库
+use mssql::*;
 
 
 
@@ -31,8 +33,8 @@ impl DDToken {
         DDToken { 
             //获取钉钉token的URL及参数
             url:"https://oapi.dingtalk.com/gettoken".to_owned(),
-            appkey:"dingzblrl7qs6pkygqcn".to_owned(), 
-            appsecret:"26GGYRR_UD1VpHxDBYVixYvxbPGDBsY5lUB8DcRqpSgO4zZax427woZTmmODX4oU".to_owned()
+            appkey:"dingrw2omtorwpetxqop".to_owned(), 
+            appsecret:"Bcrn5u6p5pQg7RvLDuCP71VjIF4ZxuEBEO6kMiwZMKXXZ5AxQl_I_9iJD0u4EQ-N".to_owned()
         }
     }
 
@@ -47,7 +49,7 @@ impl DDToken {
         let client = Client::new();
         let token_str = client.get(self.url.clone()).query(&get_token_param).send().await.unwrap().text().await.unwrap();
         let access_token:DDTokenResult =  serde_json::from_str(&token_str).unwrap();
-        
+        //println!("{:#?}", access_token);
         access_token.access_token     
 
     }    
@@ -105,6 +107,7 @@ impl DDUserid {
         let client = Client::new(); 
         let useridresult =  
         client.post("https://oapi.dingtalk.com/topapi/v2/user/getbymobile").query(&access_token).send().await.unwrap().text().await; 
+        //println!("{:#?}", useridresult);
         let mut userid = DDUseridResult::new();
         match useridresult {
             Ok(v) =>{
@@ -117,19 +120,27 @@ impl DDUserid {
     }
 }
 
+struct MsgParams {
+    title: String,
+    text: String,
+}
+ 
+
 struct User {
     exeuser:String,
     flownumber:String,
-    flowmsgtype:String,
-    flowmsg:String,
+    access_token:Option<String>,
     userphone:String,
+    userid:Option<String>,
     robotcode:String,
+    msgkey:String,
+    msgparams:String
 }
 
 impl User {
-    //初始化用户实例
-    pub fn new(exeuser:String, flownumber:String,flowmsgtype:String,flowmsg:String,userphone:String,robotcode:String) -> User {
-        User {exeuser,flownumber,flowmsgtype,flowmsg, userphone,robotcode}
+    //初始化用户实例,用于测试调试用
+    pub fn new(exeuser:String, flownumber:String,access_token:Option<String>,userphone:String,userid:Option<String>,robotcode:String,msgkey:String,msgparams:String) -> User {
+        User {exeuser,flownumber, access_token,userphone,userid,robotcode,msgkey,msgparams}
     }
 
     //获取用于访问钉钉机器人的token
@@ -140,33 +151,129 @@ impl User {
     }
 
     //通过用户手机获取userid
-    pub async fn get_userid(&self,dd_access_token:String,mobile:String) -> String {
+    pub async fn get_userid(&self) -> String {
         //通过手机获取userid
-        let dd_get_userid = DDUserid::new(dd_access_token, mobile);
+        let dd_get_userid = DDUserid::new(self.access_token.as_ref().unwrap().clone(),self.userphone.clone());
         let dd_userid = dd_get_userid.get_userid().await; 
         dd_userid 
     }
 
     //发送消息到当前用户钉钉账号
-    pub async fn send_msg(&self,access_token:String,robotcode:String,userid:String,msgkey:String,msgparams:String) {
-        
+    
+    pub async fn send_msg(& mut self) {
+        //创建请求表头结构
+        let mut request_heads = Vec::new();
+        request_heads.push("x-acs-dingtalk-access-token".to_owned());
+        request_heads.push(self.access_token.as_ref().unwrap().clone()); 
+
+        //创建请求表体结构
+        let mut request_body = HashMap::new();
+        request_body.insert("msgParam", self.msgparams.clone());
+        request_body.insert("msgKey", self.msgkey.clone());
+        request_body.insert("robotCode", self.robotcode.clone());
+        request_body.insert("userIds", self.userid.as_ref().unwrap().clone());
+
+
+        //HashMap转换成Json对象       
+        let request_body = serde_json::json!(request_body);      
+      
+ 
+        //发起消息调用接口请求
+        let client = Client::new();
+        let sendmsg = client.post("https://api.dingtalk.com/v1.0/robot/oToMessages/batchSend")
+        .header(request_heads[0].clone(),request_heads[1].clone())     
+        .json(&request_body)
+        .send().await.unwrap().text().await;
+        //println!("{}",sendmsg.unwrap());
 
     }
 }
- 
+
+struct Userid <'r> {
+    userphone: &'r  str,
+    userid: &'r  str,
+}
+
+//实现Userid类方法
+impl<'r> Userid<'r> {
+    pub fn new(userphone: &'r str, userid: &'r str) -> Self {
+        Userid{userphone, userid}
+    }
+    
+}
+
+
+//用来实现消息发送时调用的方法
+struct SendMSG;
+
+impl SendMSG {
+    pub fn new() -> SendMSG {
+        SendMSG
+    }
+
+    pub async fn execute_send_msgs(){
+         
+
+    }
+}
+//返回数据库连接配置
+pub fn conn_str() -> String {
+    let host = "localhost";
+    let database = "ZSKAIS20240101213214";
+    let user = "sa";
+    let pwd = "kephi";
+    format!(
+        r#"Server={};Database={};Uid={};Pwd="{}";TrustServerCertificate=true;"#,//integratedsecurity=sspi 用于进行本地用户验证，不需要user,pwd
+        host, database, user, pwd
+    )
+}
+//返回数据库连接池
+pub async fn buildpools() -> Result<Pool>{
+    let pools = mssql::Pool::builder()
+    .max_size(16)
+    .idle_timeout(30 * 60)
+    .min_idle(4)
+    .max_lifetime(60 * 60 * 2)
+    .build(&conn_str())
+    .unwrap(); 
+    Ok(pools)
+}
+use mssql::Pool;
+//返回需要发送消息的行数
+pub async fn get_send_nem(pool: &Pool) -> i32 {
+    let conn = pool.get().await.unwrap();
+
+    let mut num:Option<i32> = Some(0); 
+
+    let _num2 = conn.scoped_trans(
+            async  {
+            num = conn.query_scalar_i32("
+            DECLARE @num INT
+            EXEC @num= get_flow_list
+            SELECT @num").await.unwrap();
+            Ok(())
+        }
+    ).await.unwrap();
+    num.unwrap()
+
+}
+
+//获取userid表中未有userid的用户
 
 
 
 
 #[tokio::main]
-async fn main() {
-    let user = User::new("苏宁绿".to_owned(),"EBS20240525000001_20240525135052".to_owned(),"sampleMarkdown".to_owned(),"您有待办任务需要处理".to_owned(),"15345923407".to_owned(),"dingzblrl7qs6pkygqcn".to_owned());
-    let access_token = user.get_token().await;
-    println!("{}",access_token);
-    let userid=user.get_userid(access_token, user.userphone.clone()).await;
-    println!("{}",userid);    
+async fn main() { 
+    // //获取一个数据连接池对象
+    // let pools = buildpools().await.unwrap();
+    // //获取数据库中满足发送消息的流程数量
+    // let sendmsgnum = get_send_nem(&pools).await; 
+ 
+    // println!("{}", sendmsgnum);
 
-
+     
+ 
    
     
 }
