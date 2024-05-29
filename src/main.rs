@@ -13,28 +13,26 @@ use mssql::*;
 
 //钉钉获取token请求主体
 #[derive(Debug,Serialize,Deserialize)]
-struct DDToken {
-    url:String,
-    appkey: String,
-    appsecret:String    
+struct DDToken<'r> {
+    url:&'r str,
+    appkey: &'r str,
+    appsecret:&'r str,    
 }
 //DDTokenResult
 #[derive(Debug,Serialize,Deserialize)]
-struct DDTokenResult{
+struct DDTokenResult<'r>{
     errcode:u32,
-    access_token:String,
-    errmsg:String,
+    access_token:&'r str,
+    errmsg:&'r str,
 } 
 
 //实现token请求主体
-impl DDToken {
+impl<'r> DDToken<'r> {
     //创建实例
-    pub fn new () -> DDToken {
+    pub fn new (url:&'r str,appkey:&'r str,appsecret:&'r str) -> DDToken<'r> {
         DDToken { 
             //获取钉钉token的URL及参数
-            url:"https://oapi.dingtalk.com/gettoken".to_owned(),
-            appkey:"dingrw2omtorwpetxqop".to_owned(), 
-            appsecret:"Bcrn5u6p5pQg7RvLDuCP71VjIF4ZxuEBEO6kMiwZMKXXZ5AxQl_I_9iJD0u4EQ-N".to_owned()
+            url,appkey,appsecret
         }
     }
 
@@ -42,15 +40,15 @@ impl DDToken {
     pub async fn get_token(&self) -> String {
         //将获取token参数加入到一个hash变量
         let mut get_token_param = HashMap::new();
-        get_token_param.insert("appkey", self.appkey.clone());
-        get_token_param.insert("appsecret", self.appsecret.clone());        
+        get_token_param.insert("appkey", self.appkey);
+        get_token_param.insert("appsecret", self.appsecret);        
 
         //新增一个客户端实例用来访问钉钉接口获取access_token
         let client = Client::new();
-        let token_str = client.get(self.url.clone()).query(&get_token_param).send().await.unwrap().text().await.unwrap();
+        let token_str = client.get(self.url).query(&get_token_param).send().await.unwrap().text().await.unwrap();
         let access_token:DDTokenResult =  serde_json::from_str(&token_str).unwrap();
         //println!("{:#?}", access_token);
-        access_token.access_token     
+        access_token.access_token.to_owned()     
 
     }    
 
@@ -58,49 +56,47 @@ impl DDToken {
 
 //通过useriphone获取userid
 #[derive(Debug,Serialize,Deserialize)]
-struct DDUserid {
-    url: String,
-    access_token: String,
-    mobile: String,
+struct DDUserid<'r> {
+    url: &'r str,
+    access_token: &'r str,
+    mobile: &'r str,
 }
 
 
 //userid返回类型
 #[derive(Debug,Serialize,Deserialize)]
-struct DDUseridResult {
+struct DDUseridResult<'r> {
     errcode:u32,
-    result:DDUseridValue,    
-    errmsg:String,
-    request_id:String,
+    result:DDUseridValue<'r>,    
+    errmsg:&'r str,
+    request_id:&'r str,
 
 }
 
-impl DDUseridResult {
-    pub fn new() -> DDUseridResult {
-        DDUseridResult{errcode:0,result:DDUseridValue{userid:"".to_owned()},errmsg:"".to_owned(),request_id:"".to_owned()}
+impl<'r> DDUseridResult<'r> {
+    pub fn new() -> DDUseridResult<'r> {
+        DDUseridResult{errcode:0,result:DDUseridValue{userid:""},errmsg:"",request_id:""}
     }
     
 }
 
 #[derive(Debug,Serialize,Deserialize)]
-struct DDUseridValue {
-    userid:String,
+struct DDUseridValue<'r> {
+    userid:&'r str,
 }
 //钉钉DDUserid实现
-impl DDUserid {
-    pub fn new(access_token: String, mobile:String) -> DDUserid {
+impl<'r> DDUserid<'r> {
+    pub fn new(url:&'r str,access_token: &'r str, mobile:&'r str) -> DDUserid<'r> {
         DDUserid{
-            url:"https://oapi.dingtalk.com/topapi/v2/user/getbymobile".to_owned(),
-            access_token,
-            mobile
+            url,access_token,mobile
         }
     }
 
     pub async fn get_userid(&self) -> String { 
         let mut access_token = HashMap::new();
-        access_token.insert("access_token", self.access_token.clone());
+        access_token.insert("access_token", self.access_token);
         //let mut mobile = HashMap::new();
-        access_token.insert("mobile", self.mobile.clone());
+        access_token.insert("mobile", self.mobile);
          
 
         //新增一个客户端实例用来访问钉钉接口获取userid
@@ -109,43 +105,45 @@ impl DDUserid {
         client.post("https://oapi.dingtalk.com/topapi/v2/user/getbymobile").query(&access_token).send().await.unwrap().text().await; 
         //println!("{:#?}", useridresult);
         let mut userid = DDUseridResult::new();
+        let mut x = String::new();
         match useridresult {
-            Ok(v) =>{
-                userid  = serde_json::from_str(&v).unwrap();
+            Ok(v) =>{   
+                x = v.clone();             
+                userid  = serde_json::from_str(&x).unwrap();
             },
             Err(e) => println!("ErrMSG:{:#?}",e),            
         }        
-        userid.result.userid 
+        userid.result.userid.to_owned() 
 
     }
 }
 
-struct MsgParams {
-    title: String,
-    text: String,
+struct MsgParams<'r> {
+    title: &'r str,
+    text: &'r str,
 }
  
 
-struct User {
-    exeuser:String,
-    flownumber:String,
-    access_token:Option<String>,
-    userphone:String,
-    userid:Option<String>,
-    robotcode:String,
-    msgkey:String,
-    msgparams:String
+struct User<'r> {
+    exeuser:&'r str,
+    flownumber:&'r str,
+    access_token:Option<&'r str>,
+    userphone:&'r str,
+    userid:Option<&'r str>,
+    robotcode:&'r str,
+    msgkey:&'r str,
+    msgparams:&'r str,
 }
 
-impl User {
+impl<'r> User<'r> {
     //初始化用户实例,用于测试调试用
-    pub fn new(exeuser:String, flownumber:String,access_token:Option<String>,userphone:String,userid:Option<String>,robotcode:String,msgkey:String,msgparams:String) -> User {
+    pub fn new(exeuser:&'r str, flownumber:&'r str,access_token:Option<&'r str>,userphone:&'r str,userid:Option<&'r str>,robotcode:&'r str,msgkey:&'r str,msgparams:&'r str) -> User<'r> {
         User {exeuser,flownumber, access_token,userphone,userid,robotcode,msgkey,msgparams}
     }
 
     //获取用于访问钉钉机器人的token
     pub async fn get_token(&self) -> String {
-        let dd_get_token = DDToken::new();
+        let dd_get_token = DDToken::new("https://oapi.dingtalk.com/gettoken","dingrw2omtorwpetxqop","Bcrn5u6p5pQg7RvLDuCP71VjIF4ZxuEBEO6kMiwZMKXXZ5AxQl_I_9iJD0u4EQ-N");
         let dd_access_token = dd_get_token.get_token().await;
         dd_access_token
     }
@@ -153,7 +151,7 @@ impl User {
     //通过用户手机获取userid
     pub async fn get_userid(&self) -> String {
         //通过手机获取userid
-        let dd_get_userid = DDUserid::new(self.access_token.as_ref().unwrap().clone(),self.userphone.clone());
+        let dd_get_userid = DDUserid::new(self.access_token.as_ref().unwrap(),self.access_token.as_ref().unwrap(),&self.userphone);
         let dd_userid = dd_get_userid.get_userid().await; 
         dd_userid 
     }
@@ -162,16 +160,16 @@ impl User {
     
     pub async fn send_msg(& mut self) {
         //创建请求表头结构
-        let mut request_heads = Vec::new();
+        let mut request_heads: Vec<String> = Vec::new();
         request_heads.push("x-acs-dingtalk-access-token".to_owned());
-        request_heads.push(self.access_token.as_ref().unwrap().clone()); 
+        request_heads.push(self.access_token.as_ref().unwrap().to_string()); 
 
         //创建请求表体结构
         let mut request_body = HashMap::new();
-        request_body.insert("msgParam", self.msgparams.clone());
-        request_body.insert("msgKey", self.msgkey.clone());
-        request_body.insert("robotCode", self.robotcode.clone());
-        request_body.insert("userIds", self.userid.as_ref().unwrap().clone());
+        request_body.insert("msgParam", self.msgparams);
+        request_body.insert("msgKey", self.msgkey);
+        request_body.insert("robotCode", self.robotcode);
+        request_body.insert("userIds", self.userid.as_ref().unwrap());
 
 
         //HashMap转换成Json对象       
@@ -180,7 +178,7 @@ impl User {
  
         //发起消息调用接口请求
         let client = Client::new();
-        let sendmsg = client.post("https://api.dingtalk.com/v1.0/robot/oToMessages/batchSend")
+        let _sendmsg = client.post("https://api.dingtalk.com/v1.0/robot/oToMessages/batchSend")
         .header(request_heads[0].clone(),request_heads[1].clone())     
         .json(&request_body)
         .send().await.unwrap().text().await;
@@ -265,12 +263,12 @@ pub async fn get_send_nem(pool: &Pool) -> i32 {
 
 #[tokio::main]
 async fn main() { 
-    // //获取一个数据连接池对象
-    // let pools = buildpools().await.unwrap();
-    // //获取数据库中满足发送消息的流程数量
-    // let sendmsgnum = get_send_nem(&pools).await; 
+    //获取一个数据连接池对象
+    let pools = buildpools().await.unwrap();
+    //获取数据库中满足发送消息的流程数量
+    let sendmsgnum = get_send_nem(&pools).await; 
  
-    // println!("{}", sendmsgnum);
+    println!("{}", sendmsgnum);
 
      
  
