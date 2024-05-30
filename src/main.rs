@@ -7,6 +7,7 @@ use std::{collections::HashMap, result};
 //系列化
 use serde::{Deserialize, Serialize};
 //引入数据库
+use mssql::Pool;
 use mssql::*;
 
 //钉钉获取token请求主体
@@ -247,64 +248,72 @@ impl SendMSG {
     pub fn new() -> SendMSG {
         SendMSG
     }
+    //返回数据库连接配置
+    pub fn conn_str(&self) -> String {
+        let host = "localhost";
+        let database = "ZSKAIS20240101213214";
+        let user = "sa";
+        let pwd = "kephi";
+        format!(
+            r#"Server={};Database={};Uid={};Pwd="{}";TrustServerCertificate=true;"#, //integratedsecurity=sspi 用于进行本地用户验证，不需要user,pwd
+            host, database, user, pwd
+        )
+    }
+    //返回数据库连接池
+    pub fn buildpools(&self) -> Result<Pool> {
+        let pools = mssql::Pool::builder()
+            .max_size(16)
+            .idle_timeout(30 * 60)
+            .min_idle(4)
+            .max_lifetime(60 * 60 * 2)
+            .build(&self.conn_str())
+            .unwrap();
+        Ok(pools)
+    }
+    //返回需要发送消息的行数
+    pub async fn get_send_nem(&self, pool: &Pool) -> i32 {
+        let conn = pool.get().await.unwrap();
 
+        let mut num: Option<i32> = Some(0);
+
+        let _num2 = conn
+            .scoped_trans(async {
+                num = conn
+                    .query_scalar_i32(
+                        "
+                DECLARE @num INT
+                EXEC @num= get_flow_list
+                SELECT @num",
+                    )
+                    .await
+                    .unwrap();
+                Ok(())
+            })
+            .await
+            .unwrap();
+        num.unwrap()
+    }
+
+    //获取userid表中未有userid的用户
+    //执行消息发送
     pub async fn execute_send_msgs() {}
 }
-//返回数据库连接配置
-pub fn conn_str() -> String {
-    let host = "localhost";
-    let database = "ZSKAIS20240101213214";
-    let user = "sa";
-    let pwd = "kephi";
-    format!(
-        r#"Server={};Database={};Uid={};Pwd="{}";TrustServerCertificate=true;"#, //integratedsecurity=sspi 用于进行本地用户验证，不需要user,pwd
-        host, database, user, pwd
-    )
-}
-//返回数据库连接池
-pub async fn buildpools() -> Result<Pool> {
-    let pools = mssql::Pool::builder()
-        .max_size(16)
-        .idle_timeout(30 * 60)
-        .min_idle(4)
-        .max_lifetime(60 * 60 * 2)
-        .build(&conn_str())
-        .unwrap();
-    Ok(pools)
-}
-use mssql::Pool;
-//返回需要发送消息的行数
-pub async fn get_send_nem(pool: &Pool) -> i32 {
-    let conn = pool.get().await.unwrap();
-
-    let mut num: Option<i32> = Some(0);
-
-    let _num2 = conn
-        .scoped_trans(async {
-            num = conn
-                .query_scalar_i32(
-                    "
-            DECLARE @num INT
-            EXEC @num= get_flow_list
-            SELECT @num",
-                )
-                .await
-                .unwrap();
-            Ok(())
-        })
-        .await
-        .unwrap();
-    num.unwrap()
-}
-
-//获取userid表中未有userid的用户
 
 #[tokio::main]
 async fn main() {
+    let sendmsg = SendMSG::new();
     //获取一个数据连接池对象
-    let pools = buildpools().await.unwrap();
+    let pools = sendmsg.buildpools().unwrap();
     //获取数据库中满足发送消息的流程数量
-    let sendmsgnum = get_send_nem(&pools).await;
+    let sendmsgnum = sendmsg.get_send_nem(&pools).await;
+    println!("获取到需发送的列表用户数：{}", sendmsgnum);
 
-    println!("{}", sendmsgnum);
+    // let mut user = User::new("苏宁绿","EBS20240525000001_20240525135052",None,"15345923407",
+    // None,"dingzblrl7qs6pkygqcn","sampleMarkdown",
+    // "{\"text\": \"您有一条消息待办，请前往金蝶客户端或钉钉移动端业务审批处理！\",\"title\": \"金蝶流程提醒\"}");
+    // let access_token = user.get_token().await;
+    // println!("{}",access_token);
+    // user.access_token = Some(access_token.as_str());
+    // let userid=user.get_userid().await;
+    // println!("{}",userid);
 }
