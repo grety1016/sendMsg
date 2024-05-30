@@ -6,6 +6,7 @@ use httprequest::Client;
 use std::{collections::HashMap, result};
 //系列化
 use serde::{Deserialize, Serialize};
+
 //引入数据库
 use mssql::Pool;
 use mssql::*;
@@ -63,12 +64,7 @@ impl<'r> DDToken<'r> {
 
 //通过useriphone获取userid
 #[derive(Debug, Serialize, Deserialize)]
-struct DDUserid<'r> {
-    url: &'r str,
-    access_token: &'r str,
-    mobile: &'r str,
-}
-
+struct DDUserid;
 //userid返回类型
 #[derive(Debug, Serialize, Deserialize)]
 struct DDUseridResult<'r> {
@@ -94,26 +90,22 @@ struct DDUseridValue<'r> {
     userid: &'r str,
 }
 //钉钉DDUserid实现
-impl<'r> DDUserid<'r> {
-    pub fn new(url: &'r str, access_token: &'r str, mobile: &'r str) -> DDUserid<'r> {
-        DDUserid {
-            url,
-            access_token,
-            mobile,
-        }
+impl DDUserid {
+    pub fn new() -> DDUserid {
+        DDUserid
     }
 
-    pub async fn get_userid(&self) -> String {
-        let mut access_token = HashMap::new();
-        access_token.insert("access_token", self.access_token);
+    pub async fn get_userid<'r>(&self,access_token: &'r str, mobile: &'r str) -> String {
+        let mut request: HashMap<String, String> = HashMap::new();
+        request.insert("access_token".to_owned(), access_token.to_owned());
         //let mut mobile = HashMap::new();
-        access_token.insert("mobile", self.mobile);
+        request.insert("mobile".to_owned(), mobile.to_owned());
 
         //新增一个客户端实例用来访问钉钉接口获取userid
         let client = Client::new();
         let useridresult = client
             .post("https://oapi.dingtalk.com/topapi/v2/user/getbymobile")
-            .query(&access_token)
+            .query(&request)
             .send()
             .await
             .unwrap()
@@ -133,11 +125,7 @@ impl<'r> DDUserid<'r> {
     }
 }
 
-struct MsgParams<'r> {
-    title: &'r str,
-    text: &'r str,
-}
-
+#[derive(Debug, Serialize, Deserialize)]
 struct User<'r> {
     exeuser: &'r str,
     flownumber: &'r str,
@@ -173,29 +161,6 @@ impl<'r> User<'r> {
         }
     }
 
-    //获取用于访问钉钉机器人的token
-    pub async fn get_token(&self) -> String {
-        let dd_get_token = DDToken::new(
-            "https://oapi.dingtalk.com/gettoken",
-            "dingrw2omtorwpetxqop",
-            "Bcrn5u6p5pQg7RvLDuCP71VjIF4ZxuEBEO6kMiwZMKXXZ5AxQl_I_9iJD0u4EQ-N",
-        );
-        let dd_access_token = dd_get_token.get_token().await;
-        dd_access_token
-    }
-
-    //通过用户手机获取userid
-    pub async fn get_userid(&self) -> String {
-        //通过手机获取userid
-        let dd_get_userid = DDUserid::new(
-            self.access_token.as_ref().unwrap(),
-            self.access_token.as_ref().unwrap(),
-            &self.userphone,
-        );
-        let dd_userid = dd_get_userid.get_userid().await;
-        dd_userid
-    }
-
     //发送消息到当前用户钉钉账号
 
     pub async fn send_msg(&mut self) {
@@ -229,15 +194,18 @@ impl<'r> User<'r> {
     }
 }
 
+#[derive(Debug, Serialize)]
 struct Userid<'r> {
     userphone: &'r str,
-    userid: &'r str,
+    userid: Option<String>,
 }
 
-//实现Userid类方法
 impl<'r> Userid<'r> {
-    pub fn new(userphone: &'r str, userid: &'r str) -> Self {
-        Userid { userphone, userid }
+    pub fn new(userphone: &'r str) -> Self {
+        Userid {
+            userphone,
+            userid: None,
+        }
     }
 }
 
@@ -271,8 +239,8 @@ impl SendMSG {
         Ok(pools)
     }
     //返回需要发送消息的行数
-    pub async fn get_send_nem(&self, pool: &Pool) -> i32 {
-        let conn = pool.get().await.unwrap();
+    pub async fn get_send_num(&self, pools: &Pool) -> i32 {
+        let conn = pools.get().await.unwrap();
 
         let mut num: Option<i32> = Some(0);
 
@@ -281,9 +249,9 @@ impl SendMSG {
                 num = conn
                     .query_scalar_i32(
                         "
-                DECLARE @num INT
-                EXEC @num= get_flow_list
-                SELECT @num",
+            DECLARE @num INT
+            EXEC @num= get_flow_list
+            SELECT @num",
                     )
                     .await
                     .unwrap();
@@ -294,7 +262,37 @@ impl SendMSG {
         num.unwrap()
     }
 
-    //获取userid表中未有userid的用户
+    //获取userid表中未有userid的用户并回写useid
+    pub async fn get_userid_list<'r>(&self, pools: &Pool, access_token:&'r str) {
+        let mut userid_list: Vec<Userid> = Vec::new();
+        let conn = pools.get().await.unwrap();
+
+        let result: Vec<Row> = conn
+            .query_collect_row(sql_format!(
+                "SELECT trim(userphone),userid FROM {} where isnull(userid,'')=''",
+                sql_ident!("UserID")
+            ))
+            .await
+            .unwrap();
+
+        for userid in result.iter() {
+            userid_list.push(Userid::new(userid.try_get_str(0).unwrap().unwrap()));
+            //println!("{:#?},{:#?}",userid.try_get_str(0).unwrap().unwrap(),userid.try_get_str(1).unwrap());
+        }
+
+        println!("access_token:{}",access_token);
+        //初始化获取userid的对象
+         let dduserid = DDUserid::new(); 
+         let userid = dduserid.get_userid(access_token, "15345923407").await;
+         println!("userid:{}",userid);
+        
+
+        for userid in userid_list.iter_mut() {
+            let userid = Some(dduserid.get_userid(access_token, userid.userphone.as_ref()).await);
+            println!("userid:{}",userid.unwrap());
+        }
+         
+    }
     //执行消息发送
     pub async fn execute_send_msgs() {}
 }
@@ -305,15 +303,20 @@ async fn main() {
     //获取一个数据连接池对象
     let pools = sendmsg.buildpools().unwrap();
     //获取数据库中满足发送消息的流程数量
-    let sendmsgnum = sendmsg.get_send_nem(&pools).await;
+    let sendmsgnum = sendmsg.get_send_num(&pools).await;
     println!("获取到需发送的列表用户数：{}", sendmsgnum);
+    //初始化获取access_token的对象
+    let ddtoken = DDToken::new(
+        "https://oapi.dingtalk.com/gettoken",
+        "dingrw2omtorwpetxqop",
+        "Bcrn5u6p5pQg7RvLDuCP71VjIF4ZxuEBEO6kMiwZMKXXZ5AxQl_I_9iJD0u4EQ-N",
+    );
+    //获取实时access_token
+    let access_token = ddtoken.get_token().await;
+    //println!("access_token: {}", access_token);
 
-    // let mut user = User::new("苏宁绿","EBS20240525000001_20240525135052",None,"15345923407",
-    // None,"dingzblrl7qs6pkygqcn","sampleMarkdown",
-    // "{\"text\": \"您有一条消息待办，请前往金蝶客户端或钉钉移动端业务审批处理！\",\"title\": \"金蝶流程提醒\"}");
-    // let access_token = user.get_token().await;
-    // println!("{}",access_token);
-    // user.access_token = Some(access_token.as_str());
-    // let userid=user.get_userid().await;
-    // println!("{}",userid);
+    
+
+    //获取userid列表回写表里
+    let _userid_list = sendmsg.get_userid_list(&pools,access_token.as_str()).await;
 }

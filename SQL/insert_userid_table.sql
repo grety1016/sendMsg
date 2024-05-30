@@ -1,4 +1,4 @@
-ALTER PROCEDURE dbo.get_userid_list 
+ALTER PROCEDURE dbo.insert_userid_table
 AS
 BEGIN 
 	DECLARE @effect INT

@@ -35,7 +35,7 @@ DELETE dbo.SendMessage
 --执行获取useid列表过程
 BEGIN TRAN --rollback commit
 DECLARE @num2 INT
-EXEC  @num2 = get_userid_list
+EXEC  @num2 = insert_userid_table
 SELECT @num2
 
 --查询消息发送列表 
@@ -47,7 +47,12 @@ DELETE dbo.UserID
  --更新某条流程的最近处理时间
  update T_WF_ASSIGN
  set fcreatetime =  getdate()
- where fyzjmsgid='b5d1d855-3334-4350-baed-652cb8575b90'
+ where fyzjmsgid IN('b5d1d855-3334-4350-baed-652cb8575b90','2083bf64-79b5-4d14-9a5e-718a1f61c429')
+
+ --查询当前需要调整时间的流程
+ SELECT b.FNUMBER,a.FCREATETIME,* FROM T_WF_ASSIGN a
+ LEFT JOIN T_WF_PROCINST b ON a.FPROCINSTID = b.FPROCINSTID
+ SELECT FNUMBER,FCREATETIME,* FROM V_WF_ASSIGN
 
  
 
