@@ -4,7 +4,7 @@ BEGIN
 	DECLARE @effect INT
 
 	--查询消息列表中未发送的用户手机是否已经存在useid表中，如果没有，加入userid表
-	BEGIN TRAN
+	BEGIN TRAN 
 
 	INSERT INTO dbo.UserID
 	(
@@ -12,9 +12,8 @@ BEGIN
 	    userphone,
 		userid
 	)	
-	
  SELECT FNAME,FPHONE,'' FROM t_sec_user WITH(NOLOCK) WHERE FForbidStatus <>'B'   AND  
-	FNAME NOT IN ('guest','attendance','administrator','demo','demo1','demo2')
+	FNAME NOT IN ('guest','attendance','administrator','demo','demo1','demo2','诸葛健康','邓祥华','乐玲君','唐艳红')
 	AND FPHONE NOT IN (SELECT DISTINCT userphone FROM UserID WITH(NOLOCK))
 	
 	SET @effect = @@ROWCOUNT

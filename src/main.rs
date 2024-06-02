@@ -181,7 +181,7 @@ impl<'r> User<'r> {
         request_body.insert("userIds", self.userid.as_ref().unwrap());
 
         //HashMap转换成Json对象
-        let request_body = serde_json::json!(request_body);        
+        let request_body = serde_json::json!(request_body);
         //println!("{:#?}", request_body);
         //发起消息调用接口请求
         let client = Client::new();
@@ -276,13 +276,22 @@ impl SendMSG {
         //获取数据库连接
         let conn = pools.get().await.unwrap();
 
+        let insert_users = conn
+            .query_scalar_i32(
+                "DECLARE @num2 INT
+                    EXEC  @num2 = insert_userid_table
+                    SELECT @num2",
+            )
+            .await.unwrap().unwrap();
+        println!("innser_users:{:#?}", insert_users);
+
         let result: Vec<Row> = conn
             .query_collect_row(
                 "SELECT username,rtrim(ltrim(userphone)),rtrim(ltrim(userid)) FROM UserID WITH(NOLOCK) where isnull(userid,'')=''"
             )
             .await
             .unwrap();
-            //println!("test was worked.");
+        //println!("test was worked.");
         for userid in result.iter() {
             userid_list.push(Userid::new(
                 userid.try_get_str(0).unwrap().unwrap(),
@@ -298,16 +307,18 @@ impl SendMSG {
         //  println!("userid:{}",userid);
 
         for user in userid_list.iter_mut() {
-            let userid = Some(dduserid.get_userid(access_token, user.userphone).await);
-            let _exec = conn
-                .exec(sql_bind!(
-                    "UPDATE dbo.UserID SET userid = @p1 WHERE  userphone = @p2",
-                    //userid.as_ref().unwrap(),
-                    format!("[\"{}\"]",userid.as_ref().unwrap()),
-                    user.userphone
-                ))
-                .await
-                .unwrap();
+
+            let userid = Some(dduserid.get_userid(access_token, user.userphone).await);             
+                let _exec = conn
+                    .exec(sql_bind!(
+                        "UPDATE dbo.UserID SET userid = @p1 WHERE  userphone = @p2",
+                        //userid.as_ref().unwrap(),
+                        userid.as_ref().unwrap().clone(),
+                        user.userphone)
+                    )
+                    .await
+                    .unwrap();
+             
         }
     }
     //执行消息发送
@@ -317,21 +328,27 @@ impl SendMSG {
         //获取连接
         let conn = pools.get().await.unwrap();
 
-        let result: Vec<Row> = conn.query_collect_row( "EXEC get_sendmsg @username='苏宁绿'").await.unwrap();
+        let result: Vec<Row> = conn
+            .query_collect_row("EXEC get_sendmsg @username='苏宁绿'")
+            .await
+            .unwrap();
         for row in result.iter() {
-            user_list.push(User::new(row.try_get_str(0).unwrap().unwrap(),row.try_get_str(1).unwrap().unwrap(),Some(access_token), 
-             row.try_get_str(3).unwrap().unwrap(), row.try_get_str(4).unwrap(), row.try_get_str(5).unwrap().unwrap(), row.try_get_str(6).unwrap().unwrap(), row.try_get_str(7).unwrap().unwrap()));
-        } 
+            user_list.push(User::new(
+                row.try_get_str(0).unwrap().unwrap(),
+                row.try_get_str(1).unwrap().unwrap(),
+                Some(access_token),
+                row.try_get_str(3).unwrap().unwrap(),
+                row.try_get_str(4).unwrap(),
+                row.try_get_str(5).unwrap().unwrap(),
+                row.try_get_str(6).unwrap().unwrap(),
+                row.try_get_str(7).unwrap().unwrap(),
+            ));
+        }
 
         for user in user_list.iter_mut() {
             //println!("{:#?}",user);
             user.send_msg().await;
-             
         }
-
-        
-
-        
     }
 }
 
@@ -343,7 +360,7 @@ async fn main() {
 
     //获取数据库中待办满足发送消息的流程数量
     let sendmsgnum = sendmsg.get_send_num(&pools).await;
-    //println!("获取到需发送的列表用户数：{}", sendmsgnum);
+    println!("获取到需发送的列表用户数：{}", sendmsgnum);
 
     //初始化广州野马获取access_token的对象
     let gzym_ddtoken = DDToken::new(
@@ -354,15 +371,24 @@ async fn main() {
 
     //广州野马获取实时access_token
     let gzym_access_token = gzym_ddtoken.get_token().await;
-    println!("Access token: {}", gzym_access_token);
-    
-     
-    
-    
-  
-    
-     
-     
+    println!("{}", gzym_access_token);
+
+    //初始化总部获取access_token的对象
+    let zb_ddtoken = DDToken::new(
+        "https://oapi.dingtalk.com/gettoken",
+        "dingzblrl7qs6pkygqcn",
+        "26GGYRR_UD1VpHxDBYVixYvxbPGDBsY5lUB8DcRqpSgO4zZax427woZTmmODX4oU",
+    );
+
+    //总部获取实时access_token
+    let zb_access_token = zb_ddtoken.get_token().await;
+    println!("{}", zb_access_token);
+
+    //广州野马获取userid
+    sendmsg.get_userid_list(&pools, &gzym_access_token).await;
+
+    //总部获取userid
+    sendmsg.get_userid_list(&pools, &zb_access_token).await;
+
     //let _sendmsg = sendmsg.execute_send_msgs(&pools,&gzym_access_token).await;
- 
 }

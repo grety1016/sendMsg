@@ -39,25 +39,36 @@ EXEC  @num2 = insert_userid_table
 SELECT @num2
 
 --查询消息发送列表 
-SELECT username,trim(userphone)userphone,userid FROM UserID where isnull(userid,'')=''
+SELECT username,trim(userphone)userphone,userid FROM UserID 
+WHERE isnull(userid,'')=''
 SELECT username,trim(userphone)userphone, userid  FROM UserID 
 WHERE username IN('崔雅','祝延男','邓祥华','林晶')
 
+SELECT username,rtrim(ltrim(userphone)),rtrim(ltrim(userid)) FROM UserID WITH(NOLOCK) where isnull(userid,'')=''
 
  --更新用户表的userid
- UPDATE dbo.UserID SET userid = '' WHERE  username IN('祝延男')
+ UPDATE dbo.UserID SET userid = '' WHERE  username IN('陈丹丹','陈梅业')
 
- UPDATE dbo.UserID SET userphone = '18074624411' WHERE  userphone = '19976600793'
+ UPDATE dbo.UserID SET userphone = '19075398396' WHERE  userphone = '19539245142'
 
 
  --删除未在钉钉中的用户
  DELETE UserID WHERE  userphone = '19126493775'
 
  --查询用户名手机
- SELECT *FROM UserID WITH(NOLOCK) 
+ SELECT *FROM UserID WITH(NOLOCK)  
+ WHERE  username IN('陈丹丹','陈梅业')
+
+  SELECT FNAME,FPHONE,'' FROM t_sec_user WITH(NOLOCK)
+  WHERE FNAME IN('陈丹丹','陈梅业')
+
+  UPDATE t_sec_user SET fphone = '17805938219' WHERE fname='陈丹丹'
+
+  UPDATE t_sec_user SET fphone = '19075398396' WHERE fname='陈梅业'
+
 
 --删除消息列表数据
-DELETE dbo.UserID
+DELETE dbo.UserID WHERE  username IN('陈丹丹','陈梅业')
  
  --更新某条流程的最近处理时间
  update T_WF_ASSIGN
@@ -70,7 +81,6 @@ DELETE dbo.UserID
  SELECT FNUMBER,FCREATETIME,* FROM V_WF_ASSIGN
 
  --查询用户表
-
 
 
  
