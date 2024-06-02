@@ -39,7 +39,22 @@ EXEC  @num2 = insert_userid_table
 SELECT @num2
 
 --查询消息发送列表 
-SELECT * FROM UserID
+SELECT username,trim(userphone)userphone,userid FROM UserID where isnull(userid,'')=''
+SELECT username,trim(userphone)userphone, userid  FROM UserID 
+WHERE username IN('崔雅','祝延男','邓祥华','林晶')
+
+
+ --更新用户表的userid
+ UPDATE dbo.UserID SET userid = '' WHERE  username IN('祝延男')
+
+ UPDATE dbo.UserID SET userphone = '18074624411' WHERE  userphone = '19976600793'
+
+
+ --删除未在钉钉中的用户
+ DELETE UserID WHERE  userphone = '19126493775'
+
+ --查询用户名手机
+ SELECT *FROM UserID WITH(NOLOCK) 
 
 --删除消息列表数据
 DELETE dbo.UserID
@@ -54,11 +69,13 @@ DELETE dbo.UserID
  LEFT JOIN T_WF_PROCINST b ON a.FPROCINSTID = b.FPROCINSTID
  SELECT FNUMBER,FCREATETIME,* FROM V_WF_ASSIGN
 
+ --查询用户表
+
+
+
  
-
-
  
-
+ 
  
 	 
 

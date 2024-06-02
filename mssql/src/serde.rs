@@ -590,7 +590,7 @@ impl<'de> Deserializer<'de> for ColumnAccessor {
             ColumnData::DateTime2(Some(_)) |
             ColumnData::SmallDateTime(Some(_)) => {
                 if let Some(v) = chrono::NaiveDateTime::from_sql(&self.0).map_err(Self::Error::custom)? {
-                    visitor.visit_i64(v.timestamp_nanos_opt().unwrap())
+                    visitor.visit_i64(v.and_utc().timestamp_nanos_opt().unwrap())
                 } else {
                     visitor.visit_none()
                 }

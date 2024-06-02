@@ -2,6 +2,7 @@
 use tokio::time;
 //reqwestHTTP请求
 use httprequest::Client;
+use std::fmt::format;
 //hashmap
 use std::{collections::HashMap, result};
 //系列化
@@ -95,7 +96,8 @@ impl DDUserid {
         DDUserid
     }
 
-    pub async fn get_userid<'r>(&self,access_token: &'r str, mobile: &'r str) -> String {
+    //调用通过手机获取userid
+    pub async fn get_userid<'r>(&self, access_token: &'r str, mobile: &'r str) -> String {
         let mut request: HashMap<String, String> = HashMap::new();
         request.insert("access_token".to_owned(), access_token.to_owned());
         //let mut mobile = HashMap::new();
@@ -117,9 +119,12 @@ impl DDUserid {
         match useridresult {
             Ok(v) => {
                 x = v.clone();
-                userid = serde_json::from_str(&x).unwrap();
+                match serde_json::from_str(&x) {
+                    Ok(v) => userid = v,
+                    Err(e) => println!("turn_userid_error: {:?}", e),
+                }
             }
-            Err(e) => println!("ErrMSG:{:#?}", e),
+            Err(e) => println!("get_userid_error:{:#?}", e),
         }
         userid.result.userid.to_owned()
     }
@@ -162,12 +167,11 @@ impl<'r> User<'r> {
     }
 
     //发送消息到当前用户钉钉账号
-
     pub async fn send_msg(&mut self) {
         //创建请求表头结构
         let mut request_heads: Vec<String> = Vec::new();
         request_heads.push("x-acs-dingtalk-access-token".to_owned());
-        request_heads.push(self.access_token.as_ref().unwrap().to_string());
+        request_heads.push(self.access_token.unwrap().to_string());
 
         //创建请求表体结构
         let mut request_body = HashMap::new();
@@ -177,8 +181,8 @@ impl<'r> User<'r> {
         request_body.insert("userIds", self.userid.as_ref().unwrap());
 
         //HashMap转换成Json对象
-        let request_body = serde_json::json!(request_body);
-
+        let request_body = serde_json::json!(request_body);        
+        //println!("{:#?}", request_body);
         //发起消息调用接口请求
         let client = Client::new();
         let _sendmsg = client
@@ -190,19 +194,21 @@ impl<'r> User<'r> {
             .unwrap()
             .text()
             .await;
-        //println!("{}",sendmsg.unwrap());
+        //println!("{}",_sendmsg.unwrap());
     }
 }
 
 #[derive(Debug, Serialize)]
 struct Userid<'r> {
+    username: &'r str,
     userphone: &'r str,
     userid: Option<String>,
 }
 
 impl<'r> Userid<'r> {
-    pub fn new(userphone: &'r str) -> Self {
+    pub fn new(username: &'r str, userphone: &'r str) -> Self {
         Userid {
+            username,
             userphone,
             userid: None,
         }
@@ -238,8 +244,9 @@ impl SendMSG {
             .unwrap();
         Ok(pools)
     }
-    //返回需要发送消息的行数
+    //查询当前待办流程需要发送消息的行数
     pub async fn get_send_num(&self, pools: &Pool) -> i32 {
+        //获取数据库连接
         let conn = pools.get().await.unwrap();
 
         let mut num: Option<i32> = Some(0);
@@ -263,38 +270,69 @@ impl SendMSG {
     }
 
     //获取userid表中未有userid的用户并回写useid
-    pub async fn get_userid_list<'r>(&self, pools: &Pool, access_token:&'r str) {
+    pub async fn get_userid_list<'r>(&self, pools: &Pool, access_token: &'r str) {
+        //创建userid列表
         let mut userid_list: Vec<Userid> = Vec::new();
+        //获取数据库连接
         let conn = pools.get().await.unwrap();
 
         let result: Vec<Row> = conn
-            .query_collect_row(sql_format!(
-                "SELECT trim(userphone),userid FROM {} where isnull(userid,'')=''",
-                sql_ident!("UserID")
-            ))
+            .query_collect_row(
+                "SELECT username,rtrim(ltrim(userphone)),rtrim(ltrim(userid)) FROM UserID WITH(NOLOCK) where isnull(userid,'')=''"
+            )
             .await
             .unwrap();
-
+            //println!("test was worked.");
         for userid in result.iter() {
-            userid_list.push(Userid::new(userid.try_get_str(0).unwrap().unwrap()));
+            userid_list.push(Userid::new(
+                userid.try_get_str(0).unwrap().unwrap(),
+                userid.try_get_str(1).unwrap().unwrap(),
+            ));
             //println!("{:#?},{:#?}",userid.try_get_str(0).unwrap().unwrap(),userid.try_get_str(1).unwrap());
         }
 
-        println!("access_token:{}",access_token);
+        //println!("access_token:{}",access_token);
         //初始化获取userid的对象
-         let dduserid = DDUserid::new(); 
-         let userid = dduserid.get_userid(access_token, "15345923407").await;
-         println!("userid:{}",userid);
-        
+        let dduserid = DDUserid::new();
+        //  let userid = dduserid.get_userid(access_token, "15345923407").await;
+        //  println!("userid:{}",userid);
 
-        for userid in userid_list.iter_mut() {
-            let userid = Some(dduserid.get_userid(access_token, userid.userphone.as_ref()).await);
-            println!("userid:{}",userid.unwrap());
+        for user in userid_list.iter_mut() {
+            let userid = Some(dduserid.get_userid(access_token, user.userphone).await);
+            let _exec = conn
+                .exec(sql_bind!(
+                    "UPDATE dbo.UserID SET userid = @p1 WHERE  userphone = @p2",
+                    //userid.as_ref().unwrap(),
+                    format!("[\"{}\"]",userid.as_ref().unwrap()),
+                    user.userphone
+                ))
+                .await
+                .unwrap();
         }
-         
     }
     //执行消息发送
-    pub async fn execute_send_msgs() {}
+    pub async fn execute_send_msgs<'r>(&self, pools: &Pool, access_token: &'r str) {
+        //创建用户对象列表
+        let mut user_list: Vec<User> = Vec::new();
+        //获取连接
+        let conn = pools.get().await.unwrap();
+
+        let result: Vec<Row> = conn.query_collect_row( "EXEC get_sendmsg @username='苏宁绿'").await.unwrap();
+        for row in result.iter() {
+            user_list.push(User::new(row.try_get_str(0).unwrap().unwrap(),row.try_get_str(1).unwrap().unwrap(),Some(access_token), 
+             row.try_get_str(3).unwrap().unwrap(), row.try_get_str(4).unwrap(), row.try_get_str(5).unwrap().unwrap(), row.try_get_str(6).unwrap().unwrap(), row.try_get_str(7).unwrap().unwrap()));
+        } 
+
+        for user in user_list.iter_mut() {
+            //println!("{:#?}",user);
+            user.send_msg().await;
+             
+        }
+
+        
+
+        
+    }
 }
 
 #[tokio::main]
@@ -302,21 +340,26 @@ async fn main() {
     let sendmsg = SendMSG::new();
     //获取一个数据连接池对象
     let pools = sendmsg.buildpools().unwrap();
-    //获取数据库中满足发送消息的流程数量
+
+    //获取数据库中待办满足发送消息的流程数量
     let sendmsgnum = sendmsg.get_send_num(&pools).await;
-    println!("获取到需发送的列表用户数：{}", sendmsgnum);
-    //初始化获取access_token的对象
-    let ddtoken = DDToken::new(
+    //println!("获取到需发送的列表用户数：{}", sendmsgnum);
+
+    //初始化广州野马获取access_token的对象
+    let gzym_ddtoken = DDToken::new(
         "https://oapi.dingtalk.com/gettoken",
         "dingrw2omtorwpetxqop",
         "Bcrn5u6p5pQg7RvLDuCP71VjIF4ZxuEBEO6kMiwZMKXXZ5AxQl_I_9iJD0u4EQ-N",
     );
-    //获取实时access_token
-    let access_token = ddtoken.get_token().await;
-    //println!("access_token: {}", access_token);
 
+    //广州野马获取实时access_token
+    let gzym_access_token = gzym_ddtoken.get_token().await;
+    println!("Access token: {}", gzym_access_token);
     
-
-    //获取userid列表回写表里
-    let _userid_list = sendmsg.get_userid_list(&pools,access_token.as_str()).await;
+  
+    
+     
+     
+    //let _sendmsg = sendmsg.execute_send_msgs(&pools,&gzym_access_token).await;
+ 
 }

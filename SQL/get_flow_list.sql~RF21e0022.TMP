@@ -24,7 +24,7 @@ BEGIN
 		''AS userid,
 		'dingrw2omtorwpetxqop' AS robotcode,
 		'sampleMarkdown'AS msgkey,
-		'{"text": "您有一条消息待办，请前往金蝶客户端或钉钉移动端处理！","title": "金蝶流程提醒"}' AS msgparams,
+		'{\"text\": \"您有一条消息待办，请前往金蝶客户端或钉钉移动端处理！\",\"title\": \"金蝶流程提醒\"}' AS msgparams,
 		a.fcreatetime,
 		0
 	FROM V_WF_ASSIGN a WITH(NOLOCK)

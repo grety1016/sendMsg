@@ -8,10 +8,14 @@ BEGIN
 
 	INSERT INTO dbo.UserID
 	(
-	    userphone
+		username,
+	    userphone,
+		userid
 	)	
-	SELECT DISTINCT sg.userphone  FROM SendMessage sg
-	WHERE ISNULL(sg.rn,0) <> 1 AND  sg.userphone NOT IN  (SELECT DISTINCT userphone FROM userid) 
+	
+ SELECT FNAME,FPHONE,'' FROM t_sec_user WITH(NOLOCK) WHERE FForbidStatus <>'B'   AND  
+	FNAME NOT IN ('guest','attendance','administrator','demo','demo1','demo2')
+	AND FPHONE NOT IN (SELECT DISTINCT userphone FROM UserID WITH(NOLOCK))
 	
 	SET @effect = @@ROWCOUNT
 
