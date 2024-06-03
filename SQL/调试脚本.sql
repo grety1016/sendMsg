@@ -69,6 +69,8 @@ SELECT username,rtrim(ltrim(userphone)),rtrim(ltrim(userid)) FROM UserID WITH(NO
 
 --删除消息列表数据
 DELETE dbo.UserID WHERE  username IN('陈丹丹','陈梅业')
+
+DROP TABLE dbo.UserID
  
  --更新某条流程的最近处理时间
  update T_WF_ASSIGN

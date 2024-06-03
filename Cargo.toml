@@ -15,6 +15,17 @@ serde_json = { version = "1.0.116"}
 httprequest = { package = "reqwest",version = "0.12.4",features = ["json"]}
 ##增加mssql
 mssql = { path = "mssql"}
+##增加Rocket框架
+rocket = { version = "0.5.0", features = ["json"]}
+##同源域名访问问题
+rocket_cors = "0.6.0"
+
+##跟踪日志
+tracing-subscriber = {version = "0.3.16",features = ["time","chrono","env-filter"]}
+tracing = "0.1.37" 
+tracing-appender = "0.2.3"
+tm = { package = "time",version = "0.3.36", features = ["macros","formatting"] }
+chrono="0.4"
 
 [profile.release]
 opt-level = 3
