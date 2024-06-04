@@ -7,6 +7,10 @@ use std::{collections::HashMap, result};
 //系列化
 use serde::{Deserialize, Serialize};//用于结构体上方的系列化宏
 
+//日志追踪
+pub use tracing::{info,event,warn,trace,Level};
+
+
 //引入数据库
 use mssql::Pool;
 use mssql::*;
@@ -55,7 +59,7 @@ impl<'r> DDToken<'r> {
             .get(self.url)
             .query(&get_token_param)
             .send()
-            .await
+            .await    
             .unwrap()
             .text()
             .await
@@ -63,6 +67,7 @@ impl<'r> DDToken<'r> {
         let access_token: DDTokenResult = serde_json::from_str(&token_str).unwrap();
         //println!("{:#?}", access_token);
         access_token.access_token.to_owned()
+         
     }
 }
 
@@ -117,7 +122,7 @@ impl DDUserid {
             .unwrap()
             .text()
             .await;
-        //println!("{:#?}", useridresult);
+        info!("{:?}", useridresult);
         //新增一个获取ID返回结果类型
         let mut userid = DDUseridResult::new();
         let mut x = String::new();
@@ -129,10 +134,10 @@ impl DDUserid {
                 //匹配系列化结果，如果结果是可以转换的，转换成json
                 match serde_json::from_str(&x) {
                     Ok(v) => userid = v,
-                    Err(e) => println!("turn_userid_error: {:?}", e),
+                    Err(e) => event!(Level::ERROR,"turn_userid_error: {:?}", e),
                 }
             }
-            Err(e) => println!("get_userid_error:{:#?}", e),
+            Err(e) => event!(Level::ERROR,"get_userid_error:{:?}", e),
         }
         userid.result.userid.to_owned()
     }
@@ -291,7 +296,7 @@ impl SendMSG {
                     SELECT @num2",
             )
             .await.unwrap().unwrap();
-        println!("innser_users:{:#?}", insert_users);
+        info!("innser_users:{:?}", insert_users);
         //查询用户列表中未更新userid的用户
         let result: Vec<Row> = conn
             .query_collect_row(
@@ -377,7 +382,7 @@ pub async fn local_thread() {
 
     //获取数据库中待办满足发送消息的流程数量
     let sendmsgnum = sendmsg.get_send_num(&pools).await;
-    println!("获取到需发送的列表用户数：{}", sendmsgnum);
+    info!("获取到需发送的列表用户数：{}", sendmsgnum);
 
     //初始化广州野马获取access_token的对象
     let gzym_ddtoken = DDToken::new(
@@ -388,7 +393,7 @@ pub async fn local_thread() {
 
     //广州野马获取实时access_token
     let gzym_access_token = gzym_ddtoken.get_token().await;
-    println!("{}", gzym_access_token);
+    info!("gzym_access_token:{}", gzym_access_token);
 
     //初始化总部获取access_token的对象
     let zb_ddtoken = DDToken::new(
@@ -399,7 +404,7 @@ pub async fn local_thread() {
 
     //总部获取实时access_token
     let zb_access_token = zb_ddtoken.get_token().await;
-    println!("{}", zb_access_token);
+    info!("zb_access_token:{}", zb_access_token);
 
     //广州野马获取userid
     sendmsg.get_userid_list(&pools, &gzym_access_token).await;

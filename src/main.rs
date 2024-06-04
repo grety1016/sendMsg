@@ -10,8 +10,8 @@ use rocket_cors::{AllowedOrigins, CorsOptions};
 pub use std::fmt;
 pub use std::result::Result as std_Result;
 //消息接口模块
-pub mod smg;
-use smg::*;
+pub mod sendmsg;
+use sendmsg::*;
 
 //路由定义模块
 pub mod route;
@@ -62,9 +62,8 @@ async fn main() -> std_Result<(), rocket::Error> {
         .mount("/", routes![index,shutdown])
         .launch()
         .await?;
-    info!("This is an info log");
-    event!(Level::ERROR, "This is an error log");
-    trace!("This is an trance log");
-    warn!("This is an warn log");
+   
+    info!("程序结束");
+   
     Ok(())
 }

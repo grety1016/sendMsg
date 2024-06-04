@@ -13,7 +13,7 @@ BEGIN
 		userid
 	)	
  SELECT FNAME,FPHONE,'' FROM t_sec_user WITH(NOLOCK) WHERE FForbidStatus <>'B'   AND  
-	FNAME NOT IN ('guest','attendance','administrator','demo','demo1','demo2','Öî¸ğ½¡¿µ','µËÏé»ª','ÀÖÁá¾ı','ÌÆÑŞºì')
+	FNAME NOT IN ('guest','attendance','administrator','demo','demo1','demo2','Öî¸ğ½¡¿µ','µËÏé»ª','ÀÖÁá¾ı','ÌÆÑŞºì','°¬ÀöÇà','Îº×Ó³¬','ÕÅÉùÃù','ÖìÃ¯ÄÏ','¶¡Ïé')
 	AND FPHONE NOT IN (SELECT DISTINCT userphone FROM UserID WITH(NOLOCK))
 	
 	SET @effect = @@ROWCOUNT
