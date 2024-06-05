@@ -41,19 +41,23 @@ SELECT @num2
 --查询消息发送列表 
 SELECT username,trim(userphone)userphone,userid FROM UserID 
 WHERE isnull(userid,'')=''
-SELECT username,trim(userphone)userphone, userid  FROM UserID 
-WHERE username IN('崔雅','祝延男','邓祥华','林晶')
 
-SELECT username,rtrim(ltrim(userphone)),rtrim(ltrim(userid)) FROM UserID WITH(NOLOCK) where isnull(userid,'')=''
+SELECT username,trim(userphone)userphone, userid,jointime  FROM UserID 
+WHERE username IN('陈少群','崔雅','苏宁绿','刘宇秋','陈丹丹')
+
+SELECT username,rtrim(ltrim(userphone)) AS userphone,rtrim(ltrim(userid)) AS userid,jointime FROM UserID WITH(NOLOCK)
+WHERE isnull(userid,'')=''
+
+ 
 
  --更新用户表的userid
- UPDATE dbo.UserID SET userid = '' WHERE  username IN('陈丹丹','陈梅业')
+ UPDATE dbo.UserID SET userid = '200030295520953916' WHERE  username IN('刘宇秋')
 
- UPDATE dbo.UserID SET userphone = '19075398396' WHERE  userphone = '19539245142'
+ UPDATE dbo.UserID SET userphone = '13933611151' WHERE  userphone = '15377908062'
 
 
  --删除未在钉钉中的用户
- DELETE UserID WHERE  userphone = '19126493775'
+ DELETE UserID WHERE  userphone = '15377908062'
 
  --查询用户名手机
  SELECT *FROM UserID WITH(NOLOCK)  

@@ -12,8 +12,8 @@ pub use tracing::{info,event,warn,trace,Level};
 
 
 //引入数据库
-use mssql::Pool;
-use mssql::*;
+pub use mssql::Pool;
+pub use mssql::*;
 
 
 
@@ -65,7 +65,7 @@ impl<'r> DDToken<'r> {
             .await
             .unwrap();
         let access_token: DDTokenResult = serde_json::from_str(&token_str).unwrap();
-        //println!("{:#?}", access_token);
+        
         access_token.access_token.to_owned()
          
     }
@@ -207,7 +207,7 @@ impl<'r> User<'r> {
             .unwrap()
             .text()
             .await;
-        //println!("{}",_sendmsg.unwrap());
+        
     }
 }
 
@@ -303,28 +303,22 @@ impl SendMSG {
                 "SELECT username,rtrim(ltrim(userphone)),rtrim(ltrim(userid)) FROM UserID WITH(NOLOCK) where isnull(userid,'')=''"
             )
             .await
-            .unwrap();
-        //println!("test was worked.");
+            .unwrap(); 
+
         //将查询未更新userid的列表用户添加到userid_list对象
         for userid in result.iter() {
             userid_list.push(Userid::new(
                 userid.try_get_str(0).unwrap().unwrap(),
                 userid.try_get_str(1).unwrap().unwrap(),
-            ));
-            //println!("{:#?},{:#?}",userid.try_get_str(0).unwrap().unwrap(),userid.try_get_str(1).unwrap());
+            )); 
         }
-        
-        //println!("{:#?}",userid_list);
-        //println!("access_token:{}",access_token);
+    
 
         //初始化获取userid的对象
-        let dduserid = DDUserid::new();
-        //  let userid = dduserid.get_userid(access_token, "15345923407").await;
-        //  println!("userid:{}",userid);
+        let dduserid = DDUserid::new(); 
 
         //遍历userid_list用户，获取userid并更新回数据表
         for user in userid_list.iter_mut() {
-            //println!("token:{},{:#?}",access_token,user.userphone);
 
             let userid = Some(dduserid.get_userid(access_token, user.userphone).await);             
                 let _exec = conn

@@ -8,6 +8,7 @@ use rocket_cors::{AllowedOrigins, CorsOptions};
 
 //标准库Result
 pub use std::fmt;
+use std::net::{IpAddr, Ipv4Addr};
 pub use std::result::Result as std_Result;
 //消息接口模块
 pub mod sendmsg;
@@ -26,6 +27,10 @@ pub use log_record::*;
 async fn main() -> std_Result<(), rocket::Error> {
     //初始化trancing日志追踪
     init();
+
+    //创建消息对象用于生成数据库连接池
+    let sendmsg = SendMSG::new();
+    let pools = sendmsg.buildpools().unwrap();
 
     //消息接口处理方法的封装
     let _smg = local_thread().await;
@@ -49,7 +54,8 @@ async fn main() -> std_Result<(), rocket::Error> {
     //rocket启动配置
     let config = Config {
         //tls: Some(tls_config),需要增加TLS时使用
-        port: 8000,
+        address:IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+        port: 80,
         //cli_colors: false,
 
         ..Default::default()
@@ -59,6 +65,7 @@ async fn main() -> std_Result<(), rocket::Error> {
     let _rocket = rocket::custom(config)
         //::build()
         .attach(cors)
+        .manage(pools)
         .mount("/", routes![index,shutdown])
         .launch()
         .await?;
