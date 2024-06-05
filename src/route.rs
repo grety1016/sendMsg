@@ -1,5 +1,6 @@
 
 //引入rocket
+#[allow(unused)]
 use rocket::{
     self, build, config::Config, fairing::AdHoc, get, http::Method, launch, post, routes, Shutdown, State,
 };
@@ -9,7 +10,7 @@ use mssql::*;
 #[get("/?<name>&<phone>")]
 pub async fn index(name:String,phone:String,pools:&State<Pool>) -> String {
     let conn = pools.get().await.unwrap();
-    let result = conn.exec(sql_bind!("UPDATE dbo.UserID SET jointime = getdate() WHERE  userphone = @p1",phone)).await.unwrap();
+    let _result = conn.exec(sql_bind!("UPDATE dbo.UserID SET jointime = getdate() WHERE  userphone = @p1",phone)).await.unwrap();
     format!("{},欢迎您加入快先森金蝶消息接口！",name)
 }
 

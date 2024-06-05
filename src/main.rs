@@ -1,4 +1,5 @@
 //引入rocket
+#[allow(unused)]
 use rocket::{
     self, build, config::Config, fairing::AdHoc, get, http::Method, launch, post, routes, Shutdown,
 };

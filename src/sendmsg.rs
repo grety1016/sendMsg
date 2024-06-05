@@ -1,8 +1,11 @@
+#[allow(unused)]
 use tokio::time;
 //reqwestHTTP请求
 use httprequest::Client;
+#[allow(unused)]
 use std::fmt::format;
 //hashmap
+#[allow(unused)]
 use std::{collections::HashMap, result};
 //系列化
 use serde::{Deserialize, Serialize};//用于结构体上方的系列化宏
@@ -125,6 +128,7 @@ impl DDUserid {
         info!("{:?}", useridresult);
         //新增一个获取ID返回结果类型
         let mut userid = DDUseridResult::new();
+        #[allow(unused)]
         let mut x = String::new();
 
         //匹配返回结果，调用成功把值给userid
