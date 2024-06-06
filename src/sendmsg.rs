@@ -8,19 +8,14 @@ use std::fmt::format;
 #[allow(unused)]
 use std::{collections::HashMap, result};
 //系列化
-use serde::{Deserialize, Serialize};//用于结构体上方的系列化宏
+use serde::{Deserialize, Serialize}; //用于结构体上方的系列化宏
 
 //日志追踪
-pub use tracing::{info,event,warn,trace,Level};
-
+pub use tracing::{event, info, trace, warn, Level};
 
 //引入数据库
 pub use mssql::Pool;
 pub use mssql::*;
-
-
-
-
 
 //钉钉获取token请求主体
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,15 +57,14 @@ impl<'r> DDToken<'r> {
             .get(self.url)
             .query(&get_token_param)
             .send()
-            .await    
+            .await
             .unwrap()
             .text()
             .await
             .unwrap();
         let access_token: DDTokenResult = serde_json::from_str(&token_str).unwrap();
-        
+
         access_token.access_token.to_owned()
-         
     }
 }
 
@@ -138,10 +132,10 @@ impl DDUserid {
                 //匹配系列化结果，如果结果是可以转换的，转换成json
                 match serde_json::from_str(&x) {
                     Ok(v) => userid = v,
-                    Err(e) => event!(Level::ERROR,"turn_userid_error: {:?}", e),
+                    Err(e) => event!(Level::ERROR, "turn_userid_error: {:?}", e),
                 }
             }
-            Err(e) => event!(Level::ERROR,"get_userid_error:{:?}", e),
+            Err(e) => event!(Level::ERROR, "get_userid_error:{:?}", e),
         }
         userid.result.userid.to_owned()
     }
@@ -211,7 +205,7 @@ impl<'r> User<'r> {
             .unwrap()
             .text()
             .await;
-        
+        info!("send_result{:?}", _sendmsg);
     }
 }
 
@@ -287,19 +281,26 @@ impl SendMSG {
     }
 
     //获取userid表中未有userid的用户并回写useid
-    pub async fn get_userid_list<'r>(&self, pools: &Pool, access_token: &'r str) {
+    pub async fn get_userid_list<'r>(
+        &self,
+        pools: &Pool,
+        gzym_access_token: &'r str,
+        zb_access_token: &'r str,
+    ) {
         //创建userid列表
         let mut userid_list: Vec<Userid> = Vec::new();
         //获取数据库连接
         let conn = pools.get().await.unwrap();
-        //执行未添加到用户表插入user列表 
+        //执行未添加到用户表插入user列表
         let insert_users = conn
             .query_scalar_i32(
                 "DECLARE @num2 INT
                     EXEC  @num2 = insert_userid_table
                     SELECT @num2",
             )
-            .await.unwrap().unwrap();
+            .await
+            .unwrap()
+            .unwrap();
         info!("innser_users:{:?}", insert_users);
         //查询用户列表中未更新userid的用户
         let result: Vec<Row> = conn
@@ -307,58 +308,80 @@ impl SendMSG {
                 "SELECT username,rtrim(ltrim(userphone)),rtrim(ltrim(userid)) FROM UserID WITH(NOLOCK) where isnull(userid,'')=''"
             )
             .await
-            .unwrap(); 
+            .unwrap();
 
         //将查询未更新userid的列表用户添加到userid_list对象
         for userid in result.iter() {
             userid_list.push(Userid::new(
                 userid.try_get_str(0).unwrap().unwrap(),
                 userid.try_get_str(1).unwrap().unwrap(),
-            )); 
+            ));
         }
-    
 
         //初始化获取userid的对象
-        let dduserid = DDUserid::new(); 
+        let dduserid = DDUserid::new();
 
         //遍历userid_list用户，获取userid并更新回数据表
         for user in userid_list.iter_mut() {
-
-            let userid = Some(dduserid.get_userid(access_token, user.userphone).await);             
-                let _exec = conn
-                    .exec(sql_bind!(
-                        "UPDATE dbo.UserID SET userid = @p1 WHERE  userphone = @p2",
-                        //userid.as_ref().unwrap(),
-                        userid.as_ref().unwrap().clone(),
-                        user.userphone)
-                    )
-                    .await
-                    .unwrap();
-             
+            let userid = Some(dduserid.get_userid(gzym_access_token, user.userphone).await);
+            match userid {
+                Some(v) => {
+                    if v.len() > 0 {
+                        let _exec = conn
+                            .exec(sql_bind!(
+                                "UPDATE dbo.UserID SET userid =  @p1,access_token = 'gzym_access_token' WHERE  userphone = @p2",
+                                format!("[\"{}\"]",v),
+                                user.userphone
+                            ))
+                            .await
+                            .unwrap();
+                    } else {
+                        let v = Some(dduserid.get_userid(zb_access_token, user.userphone).await);
+                        let _exec = conn
+                            .exec(sql_bind!(
+                                "UPDATE dbo.UserID SET userid =  @p1,access_token = 'zb_access_token'  WHERE  userphone = @p2",
+                                format!("[\"{}\"]",v.unwrap()),
+                                user.userphone
+                            ))
+                            .await
+                            .unwrap();
+                    }
+                }
+                _ => (),
+            }
         }
-
-        //更新userid表内userid为数组格式
     }
 
     //执行消息发送
-    pub async fn execute_send_msgs<'r>(&self, pools: &Pool, access_token: &'r str) {
+    pub async fn execute_send_msgs<'r>(&self, pools: &Pool, gzym_access_token: &'r str, zb_access_token: &'r str) {
         //创建用户对象列表
         let mut user_list: Vec<User> = Vec::new();
         //获取连接
         let conn = pools.get().await.unwrap();
+
+        //新增变量保存robotcode
+        #[allow(unused)]
+        let mut robotcode = "";
 
         let result: Vec<Row> = conn
             .query_collect_row("EXEC get_sendmsg @username='苏宁绿'")
             .await
             .unwrap();
         for row in result.iter() {
+            let access_token = if row.try_get_str(2).unwrap().unwrap() =="gzym_access_token" {
+                robotcode = "dingrw2omtorwpetxqop";
+                gzym_access_token                
+            }else {
+                robotcode = "dingzblrl7qs6pkygqcn";
+                zb_access_token
+            };
             user_list.push(User::new(
                 row.try_get_str(0).unwrap().unwrap(),
                 row.try_get_str(1).unwrap().unwrap(),
                 Some(access_token),
                 row.try_get_str(3).unwrap().unwrap(),
                 row.try_get_str(4).unwrap(),
-                row.try_get_str(5).unwrap().unwrap(),
+                robotcode,
                 row.try_get_str(6).unwrap().unwrap(),
                 row.try_get_str(7).unwrap().unwrap(),
             ));
@@ -370,7 +393,6 @@ impl SendMSG {
         }
     }
 }
-
 
 //该方法是对消息操作方法的封装
 pub async fn local_thread() {
@@ -391,7 +413,7 @@ pub async fn local_thread() {
 
     //广州野马获取实时access_token
     let gzym_access_token = gzym_ddtoken.get_token().await;
-    info!("gzym_access_token:{}", gzym_access_token);
+    info!("gzym_access_token:{},robotcode:dingrw2omtorwpetxqop", gzym_access_token);
 
     //初始化总部获取access_token的对象
     let zb_ddtoken = DDToken::new(
@@ -402,12 +424,11 @@ pub async fn local_thread() {
 
     //总部获取实时access_token
     let zb_access_token = zb_ddtoken.get_token().await;
-    info!("zb_access_token:{}", zb_access_token);
+    info!("zb_access_token:{},robotcode:dingzblrl7qs6pkygqcn", zb_access_token);
 
-    //广州野马获取userid
-    sendmsg.get_userid_list(&pools, &gzym_access_token).await;
+    //获取userid
+    sendmsg.get_userid_list(&pools, &gzym_access_token, &zb_access_token).await;
 
-    //总部获取userid
-    sendmsg.get_userid_list(&pools, &zb_access_token).await;
-
+    //发送消息
+    //sendmsg.execute_send_msgs(&pools, &gzym_access_token, &zb_access_token).await;
 }

@@ -1,35 +1,43 @@
 ALTER PROCEDURE dbo.insert_userid_table
 AS
-BEGIN 
-	DECLARE @effect INT
+BEGIN
+    DECLARE @effect INT;
 
-	--查询消息列表中未发送的用户手机是否已经存在useid表中，如果没有，加入userid表
-	BEGIN TRAN 
+    --查询消息列表中未发送的用户手机是否已经存在useid表中，如果没有，加入userid表
+    BEGIN TRAN;
 
-	INSERT INTO dbo.UserID
-	(
-		username,
-	    userphone,
-		userid
-	)	
- SELECT FNAME,FPHONE,'' FROM t_sec_user WITH(NOLOCK) WHERE FForbidStatus <>'B'   AND  
-	FNAME NOT IN ('guest','attendance','administrator','demo','demo1','demo2','诸葛健康','邓祥华','乐玲君','唐艳红','艾丽青','魏子超','张声鸣','朱茂南','丁祥','刘宇秋')
-	AND FPHONE NOT IN (SELECT DISTINCT userphone FROM UserID WITH(NOLOCK))
-	
-	SET @effect = @@ROWCOUNT
+    INSERT INTO dbo.UserID
+    (
+        username,
+        userphone,
+        userid
+    )
+    SELECT FNAME,
+           FPHONE,
+           ''
+    FROM T_SEC_USER WITH (NOLOCK)
+    WHERE FFORBIDSTATUS <> 'B'
+          AND FNAME NOT IN ( 'guest', 'attendance', 'administrator', 'demo', 'demo1', 'demo2', '诸葛健康', '邓祥华', '乐玲君',
+                             '唐艳红', '艾丽青', '魏子超', '张声鸣', '朱茂南', '丁祥'
+                           )
+          AND FPHONE NOT IN
+              (
+                  SELECT DISTINCT userphone FROM UserID WITH (NOLOCK)
+              );
 
-	if @@ERROR = 0 
-		BEGIN
-			COMMIT 
-			RETURN @effect
-		END
+    SET @effect = @@ROWCOUNT;
 
-	ELSE 
-		BEGIN
-			ROLLBACK    
-			RETURN -1
-		END
-	
-END
+    IF @@ERROR = 0
+    BEGIN
+        COMMIT;
+        RETURN @effect;
+    END;
 
- 
+    ELSE
+    BEGIN
+        ROLLBACK;
+        RETURN -1;
+    END;
+
+END;
+

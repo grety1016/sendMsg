@@ -1,21 +1,48 @@
-
 //引入rocket
 #[allow(unused)]
 use rocket::{
-    self, build, config::Config, fairing::AdHoc, get, http::Method, launch, post, routes, Shutdown, State,
+    self, build, config::Config, fairing::AdHoc, get, http::Method, launch, post, routes, Shutdown,
+    State,
 };
 //引入mssql
 use mssql::*;
+//引入全局变量
+use crate::IS_WORKING;
 
-#[get("/?<name>&<phone>")]
-pub async fn index(name:String,phone:String,pools:&State<Pool>) -> String {
+#[get("/?<phone>")]
+pub async fn phone(phone: String, pools: &State<Pool>) -> String {
     let conn = pools.get().await.unwrap();
-    let _result = conn.exec(sql_bind!("UPDATE dbo.UserID SET jointime = getdate() WHERE  userphone = @p1",phone)).await.unwrap();
-    format!("{},欢迎您加入快先森金蝶消息接口！",name)
+    let is_exist = conn.exec(sql_bind!("IF EXISTS(SELECT 1 FROM UserID WITH (NOLOCK) WHERE userphone = @p1) select 1",&phone)).await.unwrap();
+    if is_exist == 0  {
+        return "用户不存在,请联系管理员咨询！".to_string();
+    }
+
+    let result = conn
+        .query_scalar_string(sql_bind!(
+            "UPDATE dbo.UserID SET jointime = getdate() WHERE  userphone = @p1; 
+        SELECT username FROM UserID WITH(NOLOCK) WHERE userphone = @p1;
+        ",
+            &phone
+        ))
+        .await
+        .unwrap();
+    let name = result.unwrap();
+    format!("{} 女士/先生,欢迎您加入快先森金蝶消息接口！", name)
 }
 
 #[get("/shutdown")]
-pub fn shutdown(shutdown:Shutdown) -> &'static str{ 
-    shutdown.notify();
-    "优雅关机！"
+pub fn shutdown(shutdown: Shutdown) -> &'static str {
+    let value = IS_WORKING.lock().unwrap();
+    if *value {
+        "任务正在执行中,请稍后重试！"
+    } else{
+        shutdown.notify();
+        "优雅关机！"
+    }
+    
+}
+
+#[get("/")]
+pub async fn index() -> &'static str {
+    "欢迎使用快先森金蝶消息接口！"
 }

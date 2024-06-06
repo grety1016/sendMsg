@@ -26,6 +26,8 @@ tracing = "0.1.37"
 tracing-appender = "0.2.3"
 tm = { package = "time",version = "0.3.36", features = ["macros","formatting"] }
 chrono="0.4"
+##静态变量定义
+lazy_static = { version = "1.4.0"}
 
 [profile.release]
 opt-level = 3
