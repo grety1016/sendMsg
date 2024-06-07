@@ -193,10 +193,10 @@ impl<'r> User<'r> {
 
         //HashMap转换成Json对象
         let request_body = serde_json::json!(request_body);
-        //println!("{:#?}", request_body);
+        println!("{:#?},{:#?}", request_heads,request_body);
         //发起消息调用接口请求
         let client = Client::new();
-        let _sendmsg = client
+        let sendmsg = client
             .post("https://api.dingtalk.com/v1.0/robot/oToMessages/batchSend")
             .header(request_heads[0].clone(), request_heads[1].clone())
             .json(&request_body)
@@ -205,7 +205,7 @@ impl<'r> User<'r> {
             .unwrap()
             .text()
             .await;
-        info!("send_result{:?}", _sendmsg);
+        info!("send_result{:?},userphone:{}", sendmsg,self.userid.as_ref().unwrap());
     }
 }
 
@@ -329,7 +329,7 @@ impl SendMSG {
                     if v.len() > 0 {
                         let _exec = conn
                             .exec(sql_bind!(
-                                "UPDATE dbo.UserID SET userid =  @p1,access_token = 'gzym_access_token' WHERE  userphone = @p2",
+                                "UPDATE dbo.UserID SET userid =  @p1,access_token = 'gzym_access_token',robotcode='dingrw2omtorwpetxqop' WHERE  userphone = @p2",
                                 format!("[\"{}\"]",v),
                                 user.userphone
                             ))
@@ -339,7 +339,7 @@ impl SendMSG {
                         let v = Some(dduserid.get_userid(zb_access_token, user.userphone).await);
                         let _exec = conn
                             .exec(sql_bind!(
-                                "UPDATE dbo.UserID SET userid =  @p1,access_token = 'zb_access_token'  WHERE  userphone = @p2",
+                                "UPDATE dbo.UserID SET userid =  @p1,access_token = 'zb_access_token',robotcode='dingzblrl7qs6pkygqcn'  WHERE  userphone = @p2",
                                 format!("[\"{}\"]",v.unwrap()),
                                 user.userphone
                             ))
@@ -358,21 +358,16 @@ impl SendMSG {
         let mut user_list: Vec<User> = Vec::new();
         //获取连接
         let conn = pools.get().await.unwrap();
-
-        //新增变量保存robotcode
-        #[allow(unused)]
-        let mut robotcode = "";
+        
 
         let result: Vec<Row> = conn
-            .query_collect_row("EXEC get_sendmsg @username='苏宁绿'")
+            .query_collect_row("EXEC get_sendmsg")
             .await
             .unwrap();
         for row in result.iter() {
             let access_token = if row.try_get_str(2).unwrap().unwrap() =="gzym_access_token" {
-                robotcode = "dingrw2omtorwpetxqop";
                 gzym_access_token                
             }else {
-                robotcode = "dingzblrl7qs6pkygqcn";
                 zb_access_token
             };
             user_list.push(User::new(
@@ -381,14 +376,14 @@ impl SendMSG {
                 Some(access_token),
                 row.try_get_str(3).unwrap().unwrap(),
                 row.try_get_str(4).unwrap(),
-                robotcode,
+                row.try_get_str(5).unwrap().unwrap(),
                 row.try_get_str(6).unwrap().unwrap(),
                 row.try_get_str(7).unwrap().unwrap(),
             ));
         }
 
         for user in user_list.iter_mut() {
-            //println!("{:#?}",user);
+            info!("{:#?}",user);
             user.send_msg().await;
         }
     }
@@ -430,5 +425,5 @@ pub async fn local_thread() {
     sendmsg.get_userid_list(&pools, &gzym_access_token, &zb_access_token).await;
 
     //发送消息
-    //sendmsg.execute_send_msgs(&pools, &gzym_access_token, &zb_access_token).await;
+    sendmsg.execute_send_msgs(&pools, &gzym_access_token, &zb_access_token).await;
 }

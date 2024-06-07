@@ -14,15 +14,14 @@ pub async fn phone(phone: String, pools: &State<Pool>) -> String {
     let conn = pools.get().await.unwrap();
     let is_exist = conn.exec(sql_bind!("IF EXISTS(SELECT 1 FROM UserID WITH (NOLOCK) WHERE userphone = @p1) select 1",&phone)).await.unwrap();
     if is_exist == 0  {
-        return "用户不存在,请联系管理员咨询！".to_string();
+        return "游客，您好！当前用户不存在,请联系管理员咨询！".to_string();
     }
 
     let result = conn
         .query_scalar_string(sql_bind!(
             "UPDATE dbo.UserID SET jointime = getdate() WHERE  userphone = @p1; 
         SELECT username FROM UserID WITH(NOLOCK) WHERE userphone = @p1;
-        ",
-            &phone
+        ",&phone
         ))
         .await
         .unwrap();

@@ -47,19 +47,22 @@ SELECT username,
        access_token
 FROM UserID
 WHERE ISNULL(userid, '') = '';
-
-ALTER TABLE userid ADD jointime DATETIME,access_token CHAR(100)
+ 
 
 SELECT username,
        RTRIM(LTRIM(userphone)) AS userphone,
        RTRIM(LTRIM(userid)) AS userid,
-       jointime
+       jointime,
+	   access_token
 FROM UserID WITH (NOLOCK)
 WHERE ISNULL(userid, '') = '';
 
+IF EXISTS(SELECT 1 FROM UserID WITH (NOLOCK) WHERE userphone = @p1) select 1
+WHERE username IN( '¡ı”Ó«Ô','À’ƒ˛¬Ã'))
 SELECT *
 FROM UserID WITH (NOLOCK)
 WHERE username IN( '¡ı”Ó«Ô','À’ƒ˛¬Ã')
+ 
  
 
 UPDATE dbo.UserID
@@ -75,7 +78,7 @@ WHERE userphone = '15345923407';
 
 --∏¸–¬”√ªß±Ìµƒuserid
 UPDATE dbo.UserID
-SET userid = '',userphone='13933611151'
+SET userid = '' 
 WHERE username IN ( '¡ı”Ó«Ô' );
 
 UPDATE dbo.UserID

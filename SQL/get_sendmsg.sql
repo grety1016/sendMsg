@@ -1,30 +1,18 @@
 ALTER PROC get_sendmsg
-(@username NVARCHAR(50))
 AS
 BEGIN
-    SELECT username AS exeuser,
-           '' AS flownumber,
-           RTRIM(access_token) AS access_token,
-           userphone,
-           userid,
-           CASE
-               WHEN access_token = 'gzym_access_token' THEN
-                   'dingrw2omtorwpetxqop'
-               WHEN access_token = 'zb_access_token' THEN
-                   'dingzblrl7qs6pkygqcn'
-           END AS robotcode,
-           'sampleLink' AS msgkey,
-           '{     
-				"msgtype": "link",     
-				"messageUrl": "http://210ie6ur7254.vicp.fun/?phone=13933611151",        
-				 "picUrl":"@lADPDfJ6fUduS0DM8Mzw",        
-				 "title": "金蝶待办消息接口测试",        
-				 "text": "您好，请点击链接加入快先森金蝶待办消息接口！"     
-			}'        AS msgparams
-    FROM dbo.UserID u WITH (NOLOCK)
-    WHERE (
-              u.username = @username
-              OR ISNULL(@username, '') = ''
-          );
+  SELECT EXEUSER,FLOWNUMBER,access_token,userphone,userid,robotcode,msgkey,'{"text": "您有 ' + CAST(msgparams AS varchar(10)) +' 条金蝶流程待办，请及时前往金蝶客户端或钉钉工作台-业务审批处理！","title": "金蝶流程提醒"}' FROM (
+		SELECT MAX(exeuser) as exeuser,
+			   max(flownumber) as flownumber,
+			   max(T2.access_token) as access_token,
+			   max(T2.userphone) as userphone,
+			   max('["17167786440649946"]') as userid,
+			   max(T2.robotcode) as robotcode,
+			   max(RTRIM(msgkey)) as msgkey,
+			   count(msgparams) as msgparams
+		FROM SendMessage T1 WITH(NOLOCK)
+		inner join (SELECT distinct userphone,username,userid,access_token,robotcode FROM UserID WITH (NOLOCK) ) T2 ON T1.userphone = T2.userphone
+		where ISNULL(t1.rn,'')<>1
+		GROUP BY T1.userphone) T 
 END;
-
+ 

@@ -37,23 +37,23 @@ async fn main() -> std_Result<(), rocket::Error> {
     init();
 
     //创建一个测试循环来判断
-    let _task = tokio::task::spawn(async move {
-        loop {
-            {
-                let mut value = IS_WORKING.lock().unwrap();
-                *value = true;               
-            }
-            println!("loop was running");
-            tokio::time::sleep(std::time::Duration::from_secs(8)).await;
-            println!("loop was stoped");            
-            {
-                let mut value = IS_WORKING.lock().unwrap();
-                *value = false;               
-            } 
-            tokio::time::sleep(std::time::Duration::from_secs(16)).await;
+    // let _task = tokio::task::spawn(async move {
+    //     loop {
+    //         {
+    //             let mut value = IS_WORKING.lock().unwrap();
+    //             *value = true;               
+    //         }
+    //         println!("loop was running");
+    //         tokio::time::sleep(std::time::Duration::from_secs(8)).await;
+    //         println!("loop was stoped");            
+    //         {
+    //             let mut value = IS_WORKING.lock().unwrap();
+    //             *value = false;               
+    //         } 
+    //         tokio::time::sleep(std::time::Duration::from_secs(16)).await;
             
-        }
-    });
+    //     }
+    // });
 
 
     //创建消息对象用于生成数据库连接池
@@ -83,7 +83,7 @@ async fn main() -> std_Result<(), rocket::Error> {
     let config = Config {
         //tls: Some(tls_config),需要增加TLS时使用
         address: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-        port: 8000,
+        port: 80,
         //cli_colors: false,
         ..Default::default()
     };
