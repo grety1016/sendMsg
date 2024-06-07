@@ -193,7 +193,7 @@ impl<'r> User<'r> {
 
         //HashMap转换成Json对象
         let request_body = serde_json::json!(request_body);
-        println!("{:#?},{:#?}", request_heads,request_body);
+        //println!("{:#?},{:#?}", request_heads,request_body);
         //发起消息调用接口请求
         let client = Client::new();
         let sendmsg = client
@@ -206,6 +206,8 @@ impl<'r> User<'r> {
             .text()
             .await;
         info!("send_result{:?},userphone:{}", sendmsg,self.userid.as_ref().unwrap());
+
+
     }
 }
 
@@ -359,16 +361,22 @@ impl SendMSG {
         //获取连接
         let conn = pools.get().await.unwrap();
         
-
+        info!("{},{}", gzym_access_token, zb_access_token);
         let result: Vec<Row> = conn
             .query_collect_row("EXEC get_sendmsg")
             .await
             .unwrap();
+
+        #[allow(unused)]
+        let mut access_token = "";
+        //遍历查询结果并赋值到user类待发送列表
         for row in result.iter() {
-            let access_token = if row.try_get_str(2).unwrap().unwrap() =="gzym_access_token" {
-                gzym_access_token                
+            if let Some("gzym_access_token") = row.try_get_str(2).unwrap() {
+                //info!("{}",gzym_access_token);
+                access_token = gzym_access_token;                
             }else {
-                zb_access_token
+                //info!("{}",zb_access_token);
+                access_token = zb_access_token;
             };
             user_list.push(User::new(
                 row.try_get_str(0).unwrap().unwrap(),
@@ -381,16 +389,24 @@ impl SendMSG {
                 row.try_get_str(7).unwrap().unwrap(),
             ));
         }
-
+        //遍历user列表调用发送方法
         for user in user_list.iter_mut() {
             info!("{:#?}",user);
-            user.send_msg().await;
+            //user.send_msg().await;
         }
+        //消息发送完成请回写已发送消息项为已发送
+        let write_row = conn.query_scalar_i32(" DECLARE @num INT
+                                                        UPDATE dbo.SendMessage SET rn = ''
+                                                        WHERE ISNULL(rn,0) <> 1
+                                                        SET @num = @@ROWCOUNT SELECT @num").await.unwrap().unwrap();
+        info!("write back nums:{}.",write_row);
+
     }
 }
 
 //该方法是对消息操作方法的封装
 pub async fn local_thread() {
+    
     let sendmsg = SendMSG::new();
     //获取一个数据连接池对象
     let pools = sendmsg.buildpools().unwrap();

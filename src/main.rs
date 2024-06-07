@@ -37,31 +37,31 @@ async fn main() -> std_Result<(), rocket::Error> {
     init();
 
     //创建一个测试循环来判断
-    // let _task = tokio::task::spawn(async move {
-    //     loop {
-    //         {
-    //             let mut value = IS_WORKING.lock().unwrap();
-    //             *value = true;               
-    //         }
-    //         println!("loop was running");
-    //         tokio::time::sleep(std::time::Duration::from_secs(8)).await;
-    //         println!("loop was stoped");            
-    //         {
-    //             let mut value = IS_WORKING.lock().unwrap();
-    //             *value = false;               
-    //         } 
-    //         tokio::time::sleep(std::time::Duration::from_secs(16)).await;
+    let _task = tokio::task::spawn(async move {
+        loop {
+            {
+                let mut value = IS_WORKING.lock().unwrap();
+                *value = true;               
+            }
+            //消息接口处理方法的封装
+            let _smg = local_thread().await;
+            info!("Task is working!");
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            {
+                let mut value = IS_WORKING.lock().unwrap();
+                *value = false;               
+            } 
+            info!("Task was done!");
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             
-    //     }
-    // });
+        }
+    });
 
 
     //创建消息对象用于生成数据库连接池
     let sendmsg = SendMSG::new();
     let pools = sendmsg.buildpools().unwrap();
-
-    //消息接口处理方法的封装
-    let _smg = local_thread().await;
+    
 
     //使用rocket_cors处理跨域同源策略问题：
     let allowed_origins = AllowedOrigins::all();

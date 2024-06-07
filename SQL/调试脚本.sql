@@ -93,7 +93,7 @@ WHERE userphone = '15377908062';
 
 --查询用户名手机
 SELECT *
-FROM UserID WITH (NOLOCK)
+FROM UserID WITH (NOLOCK)  
 WHERE username IN ( '陈丹丹', '陈梅业' );
 
 SELECT FNAME,
@@ -136,7 +136,10 @@ FROM V_WF_ASSIGN;
 
 --查询用户表
 
- 
+ DECLARE @num INT
+ UPDATE dbo.SendMessage SET rn = '1'
+ SET @num = @@ROWCOUNT
+ SELECT @num
 
 
 
