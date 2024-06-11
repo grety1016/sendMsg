@@ -178,6 +178,7 @@ impl<'r> User<'r> {
     }
 
     //发送消息到当前用户钉钉账号
+    #[allow(unused)]
     pub async fn send_msg(&mut self) {
         //创建请求表头结构
         let mut request_heads: Vec<String> = Vec::new();
@@ -395,8 +396,8 @@ impl SendMSG {
             //user.send_msg().await;
         }
         //消息发送完成请回写已发送消息项为已发送
-        let write_row = conn.query_scalar_i32(" DECLARE @num INT
-                                                        UPDATE dbo.SendMessage SET rn = ''
+        let write_row = conn.query_scalar_i32("DECLARE @num INT
+                                                        UPDATE dbo.SendMessage SET rn = '1'
                                                         WHERE ISNULL(rn,0) <> 1
                                                         SET @num = @@ROWCOUNT SELECT @num").await.unwrap().unwrap();
         info!("write back nums:{}.",write_row);

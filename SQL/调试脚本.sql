@@ -135,9 +135,11 @@ SELECT FNUMBER,
 FROM V_WF_ASSIGN;
 
 --查询用户表
+SELECT * FROM SendMessage;
 
  DECLARE @num INT
- UPDATE dbo.SendMessage SET rn = '1'
+ UPDATE dbo.SendMessage SET rn = ''
+ WHERE ISNULL(rn,0)<>1
  SET @num = @@ROWCOUNT
  SELECT @num
 
