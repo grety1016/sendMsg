@@ -238,9 +238,9 @@ impl SendMSG {
     }
     //返回数据库连接配置
     pub fn conn_str(&self) -> String {
-        let host = "localhost";
-        let database = "ZSKAIS20240101213214";
-        let user = "sa";
+        let host = "47.103.31.8";
+        let database = "Kxs_Interface";
+        let user = "kxs_dev";
         let pwd = "kephi";
         format!(
             r#"Server={};Database={};Uid={};Pwd="{}";TrustServerCertificate=true;"#, //integratedsecurity=sspi 用于进行本地用户验证，不需要user,pwd

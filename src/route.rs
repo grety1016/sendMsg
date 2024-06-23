@@ -42,6 +42,13 @@ pub fn shutdown(shutdown: Shutdown) -> &'static str {
 }
 
 #[get("/")]
-pub async fn index() -> &'static str {
+pub async fn index(pools: &State<Pool>) -> &'static str {
+    
+    let conn = pools.get().await.unwrap();
+
+    let mut result = conn.query("SELECT top 1 1 FROM dbo.T_SEC_USER").await.unwrap();
+    if let Some(row) = result.fetch().await.unwrap() {
+        println!("test is work:{:?}", row.try_get_i32(0).unwrap());
+    }
     "欢迎使用快先森金蝶消息接口！"
 }
