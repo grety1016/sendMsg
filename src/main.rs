@@ -86,7 +86,7 @@ async fn main() -> std_Result<(), rocket::Error> {
     let config = Config {
         //tls: Some(tls_config),需要增加TLS时使用
         address: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-        port: 80,
+        port: 80,       
         //cli_colors: false,
         ..Default::default()
     };
