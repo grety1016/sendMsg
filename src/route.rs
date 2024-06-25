@@ -36,7 +36,7 @@ pub fn shutdown(shutdown: Shutdown) -> &'static str {
         "任务正在执行中,请稍后重试！"
     } else{
         shutdown.notify();
-        "优雅关机！"
+        "优雅关机!!！"
     }
     
 }
@@ -50,5 +50,5 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
     if let Some(row) = result.fetch().await.unwrap() {
         println!("test is work:{:?}", row.try_get_i32(0).unwrap());
     }
-    "欢迎使用快先森金蝶消息接口！"
+    "您好，欢迎使用快先森金蝶消息接口!!!"
 }

@@ -9,7 +9,8 @@ use rocket_cors::{AllowedOrigins, CorsOptions};
 
 //标准库Result
 pub use std::fmt;
-use std::{net::{IpAddr, Ipv4Addr}, sync::{Arc,Mutex}};
+#[allow(unused)]
+use std::{fs::File, net::{IpAddr, Ipv4Addr}, sync::{Arc,Mutex}};
 pub use std::result::Result as std_Result;
 //消息接口模块
 pub mod sendmsg;
