@@ -52,3 +52,11 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
     }
     "您好,欢迎使用快先森金蝶消息接口!!!"
 }
+
+
+#[get("/temple")]
+pub async fn temple() -> &'static str {
+    
+    
+    "您好,欢迎使用快先森金蝶消息接口!!!"
+}

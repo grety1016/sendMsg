@@ -96,7 +96,7 @@ async fn main() -> std_Result<(), rocket::Error> {
         //::build()
         .attach(cors)
         .manage(pools)
-        .mount("/", routes![index, phone, shutdown])
+        .mount("/", routes![index, phone, shutdown,temple])
         .launch()
         .await?;
 
