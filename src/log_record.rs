@@ -32,7 +32,7 @@ pub fn init() {
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
         .with_max_level(tracing::Level::INFO)
         .with_span_events(FmtSpan::CLOSE)
-        .with_writer(file_appender)
+        .with_writer(file_appender) //采用写入到本地日志文件中
         .with_timer(LocalTime)
         .finish();
     // .with_file(true)

@@ -1,3 +1,6 @@
+#![allow(non_snake_case)]
+#![allow(unused_imports)]
+
 //引入rocket
 #[allow(unused)]
 use rocket::{
@@ -9,9 +12,13 @@ use rocket_cors::{AllowedOrigins, CorsOptions};
 
 //标准库Result
 pub use std::fmt;
-#[allow(unused)]
-use std::{fs::File, net::{IpAddr, Ipv4Addr}, sync::{Arc,Mutex}};
 pub use std::result::Result as std_Result;
+#[allow(unused)]
+use std::{
+    fs::File,
+    net::{IpAddr, Ipv4Addr},
+    sync::{Arc, Mutex},
+};
 //消息接口模块
 pub mod sendmsg;
 use sendmsg::*;
@@ -27,8 +34,7 @@ pub use log_record::*;
 //使用静态库
 use lazy_static::lazy_static;
 
-
-lazy_static!{
+lazy_static! {
     static ref IS_WORKING: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 }
 
@@ -42,7 +48,7 @@ async fn main() -> std_Result<(), rocket::Error> {
     //     loop {
     //         {
     //             let mut value = IS_WORKING.lock().unwrap();
-    //             *value = true;               
+    //             *value = true;
     //         }
     //         //消息接口处理方法的封装
     //         let _smg = local_thread().await;
@@ -50,21 +56,17 @@ async fn main() -> std_Result<(), rocket::Error> {
     //         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     //         {
     //             let mut value = IS_WORKING.lock().unwrap();
-    //             *value = false;               
-    //         } 
+    //             *value = false;
+    //         }
     //         info!("Task was done!");
     //         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-            
+
     //     }
     // });
-
 
     //创建消息对象用于生成数据库连接池
     let sendmsg = SendMSG::new();
     let pools = sendmsg.buildpools().unwrap();
-
-    
-    
 
     //使用rocket_cors处理跨域同源策略问题：
     let allowed_origins = AllowedOrigins::all();
@@ -85,8 +87,8 @@ async fn main() -> std_Result<(), rocket::Error> {
     //rocket启动配置
     let config = Config {
         //tls: Some(tls_config),需要增加TLS时使用
-        address: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-        port: 80,       
+        address: IpAddr::V4(Ipv4Addr::new(192, 168, 0, 31)),
+        port: 8080,
         //cli_colors: false,
         ..Default::default()
     };
@@ -97,6 +99,7 @@ async fn main() -> std_Result<(), rocket::Error> {
         .attach(cors)
         .manage(pools)
         .mount("/", routes![index, phone, shutdown])
+        .mount("/user", routes![login])
         .launch()
         .await?;
 

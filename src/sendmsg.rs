@@ -206,9 +206,11 @@ impl<'r> User<'r> {
             .unwrap()
             .text()
             .await;
-        info!("send_result{:?},userphone:{}", sendmsg,self.userid.as_ref().unwrap());
-
-
+        info!(
+            "send_result{:?},userphone:{}",
+            sendmsg,
+            self.userid.as_ref().unwrap()
+        );
     }
 }
 
@@ -356,17 +358,19 @@ impl SendMSG {
     }
 
     //执行消息发送
-    pub async fn execute_send_msgs<'r>(&self, pools: &Pool, gzym_access_token: &'r str, zb_access_token: &'r str) {
+    pub async fn execute_send_msgs<'r>(
+        &self,
+        pools: &Pool,
+        gzym_access_token: &'r str,
+        zb_access_token: &'r str,
+    ) {
         //创建用户对象列表
         let mut user_list: Vec<User> = Vec::new();
         //获取连接
         let conn = pools.get().await.unwrap();
-        
+
         info!("{},{}", gzym_access_token, zb_access_token);
-        let result: Vec<Row> = conn
-            .query_collect_row("EXEC get_sendmsg")
-            .await
-            .unwrap();
+        let result: Vec<Row> = conn.query_collect_row("EXEC get_sendmsg").await.unwrap();
 
         #[allow(unused)]
         let mut access_token = "";
@@ -374,8 +378,8 @@ impl SendMSG {
         for row in result.iter() {
             if let Some("gzym_access_token") = row.try_get_str(2).unwrap() {
                 //info!("{}",gzym_access_token);
-                access_token = gzym_access_token;                
-            }else {
+                access_token = gzym_access_token;
+            } else {
                 //info!("{}",zb_access_token);
                 access_token = zb_access_token;
             };
@@ -392,22 +396,26 @@ impl SendMSG {
         }
         //遍历user列表调用发送方法
         for user in user_list.iter_mut() {
-            info!("{:#?}",user);
+            info!("{:#?}", user);
             //user.send_msg().await;
         }
         //消息发送完成请回写已发送消息项为已发送
-        let write_row = conn.query_scalar_i32("DECLARE @num INT
+        let write_row = conn
+            .query_scalar_i32(
+                "DECLARE @num INT
                                                         UPDATE dbo.SendMessage SET rn = '1'
                                                         WHERE ISNULL(rn,0) <> 1
-                                                        SET @num = @@ROWCOUNT SELECT @num").await.unwrap().unwrap();
-        info!("write back nums:{}.",write_row);
-
+                                                        SET @num = @@ROWCOUNT SELECT @num",
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        info!("write back nums:{}.", write_row);
     }
 }
 
 //该方法是对消息操作方法的封装
 pub async fn local_thread() {
-    
     let sendmsg = SendMSG::new();
     //获取一个数据连接池对象
     let pools = sendmsg.buildpools().unwrap();
@@ -425,7 +433,10 @@ pub async fn local_thread() {
 
     //广州野马获取实时access_token
     let gzym_access_token = gzym_ddtoken.get_token().await;
-    info!("gzym_access_token:{},robotcode:dingrw2omtorwpetxqop", gzym_access_token);
+    info!(
+        "gzym_access_token:{},robotcode:dingrw2omtorwpetxqop",
+        gzym_access_token
+    );
 
     //初始化总部获取access_token的对象
     let zb_ddtoken = DDToken::new(
@@ -436,11 +447,18 @@ pub async fn local_thread() {
 
     //总部获取实时access_token
     let zb_access_token = zb_ddtoken.get_token().await;
-    info!("zb_access_token:{},robotcode:dingzblrl7qs6pkygqcn", zb_access_token);
+    info!(
+        "zb_access_token:{},robotcode:dingzblrl7qs6pkygqcn",
+        zb_access_token
+    );
 
     //获取userid
-    sendmsg.get_userid_list(&pools, &gzym_access_token, &zb_access_token).await;
+    sendmsg
+        .get_userid_list(&pools, &gzym_access_token, &zb_access_token)
+        .await;
 
     //发送消息
-    sendmsg.execute_send_msgs(&pools, &gzym_access_token, &zb_access_token).await;
+    sendmsg
+        .execute_send_msgs(&pools, &gzym_access_token, &zb_access_token)
+        .await;
 }
