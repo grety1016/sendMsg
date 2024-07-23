@@ -66,7 +66,7 @@ async fn main() -> std_Result<(), rocket::Error> {
 
     //创建消息对象用于生成数据库连接池
     let sendmsg = SendMSG::new();
-    let pools = sendmsg.buildpools().unwrap();
+    let pools = sendmsg.buildpools(60, 8).unwrap();
 
     //使用rocket_cors处理跨域同源策略问题：
     let allowed_origins = AllowedOrigins::all();

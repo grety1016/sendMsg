@@ -250,11 +250,11 @@ impl SendMSG {
         )
     }
     //返回数据库连接池
-    pub fn buildpools(&self) -> Result<Pool> {
+    pub fn buildpools(&self, max_size: u32, min_idle: u32) -> Result<Pool> {
         let pools = mssql::Pool::builder()
-            .max_size(16)
+            .max_size(max_size)
             .idle_timeout(30 * 60)
-            .min_idle(4)
+            .min_idle(min_idle)
             .max_lifetime(60 * 60 * 2)
             .build(&self.conn_str())
             .unwrap();
@@ -418,7 +418,7 @@ impl SendMSG {
 pub async fn local_thread() {
     let sendmsg = SendMSG::new();
     //获取一个数据连接池对象
-    let pools = sendmsg.buildpools().unwrap();
+    let pools = sendmsg.buildpools(6, 2).unwrap();
 
     //获取数据库中待办满足发送消息的流程数量
     let sendmsgnum = sendmsg.get_send_num(&pools).await;

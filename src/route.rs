@@ -74,13 +74,25 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
 }
 
 #[post("/login", format = "json", data = "<user>")]
-pub async fn login(user: Json<LoginUser>) -> Json<LoginResponse> {
+pub async fn login(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResponse> {
     let Json(userp) = user;
-    let mut res = LoginResponse::new(userp.clone(), 0);
-    if userp.userName != "suninglv" || userp.userPwd != "111111" {
-        res = LoginResponse::new(userp, -1);
-        println!("1");
+
+    let conn = pools.get().await.unwrap();
+
+    let login_user = conn
+        .exec(sql_bind!(
+            "SELECT  1  FROM dbo.sendMsg_users WHERE userName = @p1 AND userPwd = @p2",
+            &userp.userName,
+            &userp.userPwd
+        ))
+        .await
+        .unwrap();
+
+    if login_user == 0 {
+        return Json(LoginResponse::new(userp.clone(), -1));
+    } else {
+        return Json(LoginResponse::new(userp.clone(), 0));
     }
-    Json(res)
+
     // 加入任务
 }
