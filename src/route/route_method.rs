@@ -30,10 +30,9 @@ impl Fairing for TokenFairing {
         }
     }
 
-    async fn on_request(&self, req: &mut Request<'_>, _data: &mut Data<'_>){ 
+    async fn on_request(&self, req: &mut Request<'_>, _data: &mut Data<'_>) {
         let token = req.headers().get_one("Authorization");
         println!("req1:{:#?}", token);
-        
     }
 }
 
@@ -78,11 +77,12 @@ impl Claims {
     }
 
     pub fn get_token(usrPhone: String) -> String {
-        let secretKey = env::var("TokenSecretKey").unwrap_or_else(|_| String::from("kephi520."));
+        let mut secretKey =
+            env::var("TokenSecretKey").unwrap_or_else(|_| String::from("kephi520."));
 
         let mut hasherSecretKey = Sha256::new();
         hasherSecretKey.input_str(secretKey.as_ref());
-        let hex = hasherSecretKey.result_str();
+        secretKey = hasherSecretKey.result_str();
 
         let claims = Claims::new(usrPhone.to_owned());
         let token = encode(
@@ -103,5 +103,3 @@ impl Claims {
         );
     }
 }
-
-
