@@ -1,5 +1,5 @@
 //引入JWT模块
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+//use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
 use rocket::{
     fairing::{self, Fairing},
@@ -31,8 +31,12 @@ impl Fairing for TokenFairing {
     }
 
     async fn on_request(&self, req: &mut Request<'_>, _data: &mut Data<'_>) {
-        let token = req.headers().get_one("Authorization");
-        println!("req1:{:#?}", token);
+        // let token = req.headers().get_one("Authorization");
+
+        // if let Some(value) = token {
+        //     let verifyResult = Claims::verify_token(value.to_string());
+        //     println!("req1:{:#?}", verifyResult);
+        // }
     }
 }
 
@@ -72,34 +76,42 @@ pub struct Claims {
 impl Claims {
     pub fn new(sub: String) -> Self {
         let nowTimeStamp = chrono::Local::now().timestamp() as usize;
-        let exp = nowTimeStamp + 30; //7 * 24 * 60 * 60; //设置token过期时间为一周
+        let exp = nowTimeStamp + 7 * 24 * 60 * 60; //设置token过期时间为一周
         Claims { sub, exp }
     }
 
-    pub fn get_token(usrPhone: String) -> String {
-        let mut secretKey =
-            env::var("TokenSecretKey").unwrap_or_else(|_| String::from("kephi520."));
+    // pub fn get_token(usrPhone: String) -> String {
+    //     let mut secretKey =
+    //         env::var("TokenSecretKey").unwrap_or_else(|_| String::from("kephi520."));
 
-        let mut hasherSecretKey = Sha256::new();
-        hasherSecretKey.input_str(secretKey.as_ref());
-        secretKey = hasherSecretKey.result_str();
+    //     let mut hasherSecretKey = Sha256::new();
+    //     hasherSecretKey.input_str(secretKey.as_ref());
+    //     secretKey = hasherSecretKey.result_str();
 
-        let claims = Claims::new(usrPhone.to_owned());
-        let token = encode(
-            &Header::default(),
-            &claims,
-            &EncodingKey::from_secret(secretKey.as_ref()),
-        )
-        .unwrap();
-        token
-    }
-    pub fn verify_token(token: String) {
-        let secretKey = env::var("TokenSecretKey").unwrap_or_else(|_| String::from("kephi520."));
+    //     let claims = Claims::new(usrPhone.to_owned());
 
-        let detoken = decode::<Claims>(
-            &token,
-            &DecodingKey::from_secret(secretKey.as_ref()),
-            &Validation::default(),
-        );
-    }
+    //     let token = encode(
+    //         &Header::default(),
+    //         &claims,
+    //         &EncodingKey::from_secret(secretKey.as_ref()),
+    //     )
+    //     .unwrap();
+    //     println!("token:{:#?}", token);
+    //     token
+    // }
+    // pub fn verify_token(token: String) {
+    //     let mut secretKey =
+    //         env::var("TokenSecretKey").unwrap_or_else(|_| String::from("kephi520."));
+
+    //     let mut hasherSecretKey = Sha256::new();
+    //     hasherSecretKey.input_str(secretKey.as_ref());
+    //     secretKey = hasherSecretKey.result_str();
+
+    //     let detoken = decode::<Claims>(
+    //         &token,
+    //         &DecodingKey::from_secret(secretKey.as_ref()),
+    //         &Validation::default(),
+    //     );
+    //     println!("detoken:{:#?}", detoken);
+    // }
 }

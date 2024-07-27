@@ -95,7 +95,7 @@ pub async fn login(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResp
     let mut errmsg = String::from("");
 
     if let Some(value) = userPhone {
-        token = Claims::get_token(value);
+        token = "".to_string();
     } else {
         code = -1;
         errmsg = "用户名或密码错误!".to_owned();

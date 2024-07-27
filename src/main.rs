@@ -9,6 +9,7 @@ use rocket::{
 
 //处理同源的问题
 use rocket_cors::{AllowedOrigins, CorsOptions};
+use route_method::TokenFairing;
 
 //标准库Result
 pub use std::fmt;
@@ -96,6 +97,7 @@ async fn main() -> std_Result<(), rocket::Error> {
     //rocket服务器启动
     let _rocket = rocket::custom(config)
         //::build()
+        .attach(TokenFairing)
         .attach(cors)
         .manage(pools)
         .mount("/", routes![index, phone, shutdown])
