@@ -7,7 +7,8 @@ use rocket::{
     routes, serde::json::Json, Shutdown, State,
 };
 //引入serde_json
-use serde_json::json;
+use serde::{Deserialize, Serialize};
+use serde_json::json; //用于结构体上方的系列化宏
 
 //日志跟踪
 pub use tracing::{event, info, trace, warn, Level};
@@ -17,30 +18,10 @@ use mssql::*;
 //引入全局变量
 use crate::IS_WORKING;
 
-use serde::{Deserialize, Serialize}; //用于结构体上方的系列化宏
+use either::*;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct LoginUser {
-    pub userName: String,
-    pub userPwd: String,
-    pub code: Option<i32>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LoginResponse {
-    userName: String,
-    userPwd: String,
-    pub code: i32, // 0：成功，非0：失败
-}
-impl LoginResponse {
-    pub fn new(data: LoginUser, code: i32) -> Self {
-        LoginResponse {
-            code,
-            userName: data.userName,
-            userPwd: data.userPwd,
-        }
-    }
-}
+pub mod route_method;
+use route_method::*;
 
 #[get("/?<phone>")]
 pub async fn phone(phone: String, pools: &State<Pool>) -> String {
@@ -100,20 +81,26 @@ pub async fn login(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResp
 
     let conn = pools.get().await.unwrap();
 
-    let login_user = conn
-        .exec(sql_bind!(
-            "SELECT  1  FROM dbo.sendMsg_users WHERE userName = @p1 AND userPwd = @p2",
+    let userPhone = conn
+        .query_scalar_string(sql_bind!(
+            "SELECT  userPhone  FROM dbo.sendMsg_users WHERE userName = @p1 AND userPwd = @p2",
             &userp.userName,
             &userp.userPwd
         ))
         .await
         .unwrap();
 
-    if login_user == 0 {
-        return Json(LoginResponse::new(userp.clone(), -1));
+    let mut token = String::from("Bearer2");
+    let mut code = 0;
+    let mut errmsg = String::from("");
+
+    if let Some(value) = userPhone {
+        token = Claims::get_token(value);
     } else {
-        return Json(LoginResponse::new(userp.clone(), 0));
+        code = -1;
+        errmsg = "用户名或密码错误!".to_owned();
     }
+    return Json(LoginResponse::new(userp.clone(), code, token, errmsg));
 
     // 加入任务
 }
