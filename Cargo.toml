@@ -3,6 +3,8 @@ name = "sendmsg"
 version = "0.1.0"
 edition = "2021"
 
+#netsh interface set interface name="以太网" admin=DISABLED
+#netsh interface set interface name="以太网" admin=ENABLED
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
