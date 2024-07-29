@@ -10,7 +10,7 @@ edition = "2021"
 
 [dependencies]
 ##jsonwebtoke
-jwt = "0.16.0"
+jsonwebtoken = "9"
 ##tokio crate async runtime
 tokio = { version = "1.37.0", features = ["full"] }
 ##序列化与反序列化crate,添加“derive”使其#[derive(Serialize,Deserialize)]可用

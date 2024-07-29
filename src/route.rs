@@ -61,6 +61,10 @@ pub fn shutdown(shutdown: Shutdown) -> &'static str {
     }
 }
 
+#[post("/")]
+pub async fn post_index() -> &'static str { "post_index" }
+
+
 #[get("/")]
 pub async fn index(pools: &State<Pool>) -> &'static str {
     let conn = pools.get().await.unwrap();
@@ -70,7 +74,7 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
         .await
         .unwrap();
     if let Some(row) = result.fetch().await.unwrap() {
-        println!("test is work:{:?}", row.try_get_i32(0).unwrap());
+        println!("test is work:{:?}!", row.try_get_i32(0).unwrap());
     }
     "您好,欢迎使用快先森金蝶消息接口!!!"
 }
@@ -95,7 +99,7 @@ pub async fn login(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResp
     let mut errmsg = String::from("");
 
     if let Some(value) = userPhone {
-        token = "".to_string();
+        token = Claims::get_token(value.to_owned());
     } else {
         code = -1;
         errmsg = "用户名或密码错误!".to_owned();
