@@ -115,10 +115,13 @@ impl Claims {
         hasherSecretKey.input_str(secretKey.as_ref());
         secretKey = hasherSecretKey.result_str();
 
+        let mut validate = Validation::new(Algorithm::HS256);
+        validate.leeway = 0; //设置偏差为0
+
         let detoken = decode::<Claims>(
             &token,
             &DecodingKey::from_secret(secretKey.as_ref()),
-            &Validation::default(),
+            &validate,
         );
         println!("{:#?}", detoken);
         match detoken {
