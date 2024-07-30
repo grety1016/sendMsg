@@ -402,10 +402,7 @@ impl SendMSG {
         //消息发送完成请回写已发送消息项为已发送
         let write_row = conn
             .query_scalar_i32(
-                "DECLARE @num INT
-                                                        UPDATE dbo.SendMessage SET rn = '1'
-                                                        WHERE ISNULL(rn,0) <> 1
-                                                        SET @num = @@ROWCOUNT SELECT @num",
+                "DECLARE @num INT UPDATE dbo.SendMessage SET rn = '1'  WHERE ISNULL(rn,0) <> 1  SET @num = @@ROWCOUNT SELECT @num",
             )
             .await
             .unwrap()

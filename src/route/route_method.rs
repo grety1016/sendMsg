@@ -84,7 +84,7 @@ pub struct Claims {
 impl Claims {
     pub fn new(sub: String) -> Self {
         let nowTimeStamp = chrono::Local::now().timestamp() as usize;
-        let exp = nowTimeStamp + 7 * 24 * 60 * 60; //设置token过期时间为一周
+        let exp = nowTimeStamp + 31 * 24 * 60 * 60; //设置token过期时间为一周
         Claims { sub, exp }
     }
 
