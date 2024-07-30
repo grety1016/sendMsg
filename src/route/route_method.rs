@@ -2,18 +2,16 @@
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
 use rocket::{
+    data::{Data, ToByteUnit},
     fairing::{self, Fairing},
     http::uri::Origin,
     http::Method,
     request::Outcome,
-    Data, Request, Response,
+    Request, Response,
 };
 
 //Hash加密库:
 pub use crypto::{digest::Digest, sha2::Sha256};
-
-//引入系统时间
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize}; //用于结构体上方的系列化宏
 
@@ -38,6 +36,7 @@ impl Fairing for TokenFairing {
             verifyResult = Claims::verify_token(value.to_string());
         }
         println!("{}", verifyResult);
+        if verifyResult == true {}
         // if verifyResult == false {
         //     let url = Origin::parse("/").unwrap();
 
@@ -78,12 +77,12 @@ impl LoginResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
-    pub exp: usize,
+    pub exp: u64,
 }
 
 impl Claims {
     pub fn new(sub: String) -> Self {
-        let nowTimeStamp = chrono::Local::now().timestamp() as usize;
+        let nowTimeStamp = jsonwebtoken::get_current_timestamp();
         let exp = nowTimeStamp + 31 * 24 * 60 * 60; //设置token过期时间为一周
         Claims { sub, exp }
     }
@@ -118,13 +117,13 @@ impl Claims {
         let mut validate = Validation::new(Algorithm::HS256);
         validate.leeway = 0; //设置偏差为0
 
-        let detoken = decode::<Claims>(
+        let deToken = decode::<Claims>(
             &token,
             &DecodingKey::from_secret(secretKey.as_ref()),
             &validate,
         );
-        println!("{:#?}", detoken);
-        match detoken {
+        println!("{:#?}", deToken);
+        match deToken {
             Ok(_) => {
                 return true;
             }

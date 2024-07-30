@@ -82,6 +82,7 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
 #[post("/login", format = "json", data = "<user>")]
 pub async fn login(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResponse> {
     let Json(userp) = user;
+    println!("{:#?}", &userp);
 
     let conn = pools.get().await.unwrap();
 
