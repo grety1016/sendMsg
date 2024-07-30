@@ -37,6 +37,7 @@ impl Fairing for TokenFairing {
         }
         println!("{}", verifyResult);
         if verifyResult == true {}
+    
         // if verifyResult == false {
         //     let url = Origin::parse("/").unwrap();
 

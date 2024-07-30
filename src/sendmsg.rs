@@ -290,6 +290,7 @@ impl SendMSG {
         &self,
         pools: &Pool,
         gzym_access_token: &'r str,
+        
         zb_access_token: &'r str,
     ) {
         //创建userid列表
