@@ -35,9 +35,9 @@ impl Fairing for TokenFairing {
         if let Some(value) = token {
             verifyResult = Claims::verify_token(value.to_string());
         }
-        println!("{}", verifyResult);
+        //println!("{}", verifyResult);
         if verifyResult == true {}
-    
+
         // if verifyResult == false {
         //     let url = Origin::parse("/").unwrap();
 
@@ -123,7 +123,7 @@ impl Claims {
             &DecodingKey::from_secret(secretKey.as_ref()),
             &validate,
         );
-        println!("{:#?}", deToken);
+        //println!("{:#?}", deToken);
         match deToken {
             Ok(_) => {
                 return true;

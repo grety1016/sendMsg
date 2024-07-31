@@ -1,10 +1,11 @@
 use std::borrow::Borrow;
 
+use httprequest::Request;
 //引入rocket
 #[allow(unused)]
 use rocket::{
     self, build, config::Config, fairing::AdHoc, get, http::Method, http::Status, launch, post,
-    routes, serde::json::Json, Shutdown, State,
+    routes, serde::json::Json, Request as rocketRequest, Shutdown, State,
 };
 //引入serde_json
 use serde::{Deserialize, Serialize};
@@ -62,8 +63,9 @@ pub fn shutdown(shutdown: Shutdown) -> &'static str {
 }
 
 #[post("/")]
-pub async fn post_index() -> &'static str { "post_index" }
-
+pub async fn post_index() -> &'static str {
+    "post_index"
+}
 
 #[get("/")]
 pub async fn index(pools: &State<Pool>) -> &'static str {
@@ -80,7 +82,7 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
 }
 
 #[post("/login", format = "json", data = "<user>")]
-pub async fn login(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResponse> {
+pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResponse> {
     let Json(userp) = user;
     println!("{:#?}", &userp);
 
@@ -95,7 +97,7 @@ pub async fn login(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResp
         .await
         .unwrap();
 
-    let mut token = String::from("Bearer2");
+    let mut token = String::from("Bearer ");
     let mut code = 0;
     let mut errmsg = String::from("");
 
