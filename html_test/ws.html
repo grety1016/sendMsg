@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.min.js"></script>
+    <title>Document</title>
+  </head>
+  <body>
+    <div>这是一个测试</div>
+    <input
+      type="button"
+      value="发送消息"
+      id="btnSend"
+      onclick="Sendmessage()"
+    />
+  </body>
+</html>
+
+<script>
+  var ws; // 全局的websocket变量
+
+  function Sendmessage() {
+    let json_str = {
+      name: "grety",
+      age: 18,
+      sex: "男",
+    };
+    ws.send(JSON.stringify(json_str));
+  }
+
+  $(document).ready(function () {
+    // 创建websocket连接
+    function createWebSocket() {
+      try {
+        ws = new WebSocket("ws://192.168.2.5:8080/ws");        // ws = new WebSocket("ws://192.168.0.31:8080/ws");
+        ws.onopen = function () {
+          console.log("连接成功");
+        };
+        ws.onmessage = function (event) {
+          console.log("接收到消息ok: " + event.data);
+        };
+        ws.onclose = function () {
+          console.log("连接关闭，3秒后尝试重连");
+          //ws.send("连接断开！");
+          setTimeout(createWebSocket, 3000);
+        };
+        ws.onerror = function () {
+          console.log("连接出错，3秒后尝试重连");
+          //ws.send("连接断开！");
+          setTimeout(createWebSocket, 3000);
+        };
+      } catch (e) {
+        console.log("连接失败，3秒后尝试重连");
+        ws.send("连接断开！");
+        setTimeout(createWebSocket, 1000);
+      }
+    }
+
+    // 初始化websocket连接
+    createWebSocket();
+  });
+</script>

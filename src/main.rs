@@ -4,7 +4,20 @@
 //引入rocket
 #[allow(unused)]
 use rocket::{
-    self, build, config::Config, fairing::AdHoc, get, http::Method, launch, post, routes, Shutdown,
+    self, build,
+    config::Config,
+    fairing::AdHoc,
+    futures::{SinkExt, StreamExt},
+    get,
+    http::Method,
+    launch, post, routes,
+    tokio::{
+        self,
+        sync::{broadcast, mpsc},
+        task::spawn,
+        time::{sleep, Duration},
+    },
+    Shutdown,
 };
 
 //处理同源的问题
@@ -69,6 +82,26 @@ async fn main() -> std_Result<(), rocket::Error> {
     let sendmsg = SendMSG::new();
     let pools = sendmsg.buildpools(60, 8).unwrap();
 
+    //创建多播消息通道
+    #[allow(unused)]
+    let (tx, mut rx) = broadcast::channel::<String>(200);
+
+    let tx2 = tx.clone();
+    // tokio::spawn(async move {
+    //     loop {
+    //         tokio::time::sleep(Duration::from_millis(3000)).await;
+    //         tx2.send(String::from("Task1 completed!")).unwrap();
+    //     }
+    // });
+    // let tx3 = tx.clone();
+
+    // tokio::spawn(async move {
+    //     loop {
+    //         tokio::time::sleep(Duration::from_millis(3000)).await;
+    //         tx3.send(String::from("Task2 completed!")).unwrap();
+    //     }
+    // });
+
     //使用rocket_cors处理跨域同源策略问题：
     let allowed_origins = AllowedOrigins::all();
     //cors请求处理配置
@@ -89,7 +122,8 @@ async fn main() -> std_Result<(), rocket::Error> {
     let config = Config {
         //tls: Some(tls_config),需要增加TLS时使用
         address: IpAddr::V4(Ipv4Addr::new(192, 168, 0, 31)),
-        port: 8080,
+        // address: IpAddr::V4(Ipv4Addr::new(192, 168, 0, 31)),
+        port: 80,
         //cli_colors: false,
         ..Default::default()
     };
@@ -100,7 +134,9 @@ async fn main() -> std_Result<(), rocket::Error> {
         .attach(TokenFairing)
         .attach(cors)
         .manage(pools)
-        .mount("/", routes![index, phone, shutdown])
+        .manage(tx)
+        .manage(rx)
+        .mount("/", routes![index, phone, shutdown, Token_UnAuthorized, ws])
         .mount("/user", routes![login])
         .launch()
         .await?;

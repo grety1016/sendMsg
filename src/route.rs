@@ -1,14 +1,30 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, io, result::Result};
 
 use httprequest::Request;
+use rocket::http::hyper::request;
 //引入rocket
 #[allow(unused)]
 use rocket::{
-    self, build, config::Config, fairing::AdHoc, get, http::Method, http::Status, launch, post,
-    routes, serde::json::Json, Request as rocketRequest, Shutdown, State,
+    self, build,
+    config::Config,
+    fairing::AdHoc,
+    futures::{SinkExt, StreamExt},
+    get,
+    http::Method,
+    http::Status,
+    launch, post,
+    request::{FromRequest, Outcome},
+    routes,
+    serde::json::Json,
+    tokio::sync::broadcast::{Receiver, Sender},
+    Request as rocketRequest, Shutdown, State,
 };
+//引入rocket_ws
+use rocket_ws::{self, stream::DuplexStream, Message, WebSocket};
+//引入tokio
+use tokio::{self, select};
 //引入serde_json
-use serde::{Deserialize, Serialize};
+use serde::{de::value::CowStrDeserializer, Deserialize, Serialize};
 use serde_json::json; //用于结构体上方的系列化宏
 
 //日志跟踪
@@ -24,6 +40,66 @@ use either::*;
 pub mod route_method;
 use route_method::*;
 
+pub struct WebSocketHandler;
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for WebSocketHandler {
+    type Error = ();
+    async fn from_request(request: &'r rocketRequest<'_>) -> Outcome<Self, Self::Error> {
+        println!("{:#?}", request);
+        Outcome::Success(WebSocketHandler)
+    }
+}
+
+#[get("/ws")]
+pub async fn ws(
+    ws: WebSocket,
+    tx: &State<Sender<String>>,
+    request: WebSocketHandler,
+) -> rocket_ws::Channel<'static> {
+    let mut rx = tx.subscribe();
+    ws.channel(move |mut stream| {
+        Box::pin(async move {
+            let mut _stream_clone = &stream;
+            loop {
+                select! {
+                    //等待接收前端消息来执行事件函数
+                   Some(msg) = stream.next() =>{
+                        match msg {
+                            Ok(msg) => {
+                                handle_message(&mut stream,msg).await?;
+                            },
+                            Err(e)=> info!("{}", e),
+                        }
+                   }
+                   //后端事件执行后触发消息机制响应
+                   msg = rx.recv() => {
+                    match msg {
+                    Ok(msg) => {
+                        stream.send(msg.into()).await?;
+                    },
+
+                    Err(e)=> info!("{}", e),
+                    }
+
+                   }
+
+
+
+
+                }
+            }
+        })
+    })
+}
+//如下函数用于执行接收消息后的处理函数
+async fn handle_message(
+    stream: &mut DuplexStream,
+    msg: Message,
+) -> Result<(), rocket_ws::result::Error> {
+    stream.send(msg.into()).await?;
+    Ok(())
+}
 #[get("/?<phone>")]
 pub async fn phone(phone: String, pools: &State<Pool>) -> String {
     let conn = pools.get().await.unwrap();
@@ -84,30 +160,67 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
 #[post("/login", format = "json", data = "<user>")]
 pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResponse> {
     let Json(userp) = user;
-    println!("{:#?}", &userp);
-
-    let conn = pools.get().await.unwrap();
-
-    let userPhone = conn
-        .query_scalar_string(sql_bind!(
-            "SELECT  userPhone  FROM dbo.sendMsg_users WHERE userName = @p1 AND userPwd = @p2",
-            &userp.userName,
-            &userp.userPwd
-        ))
-        .await
-        .unwrap();
-
-    let mut token = String::from("Bearer ");
-    let mut code = 0;
-    let mut errmsg = String::from("");
-
-    if let Some(value) = userPhone {
-        token = Claims::get_token(value.to_owned());
+    // assert_eq!(userp.token.is_empty(),false);
+    // assert_eq!(Claims::verify_token(userp.token.clone()).await,true);
+    if !userp.token.is_empty() && Claims::verify_token(userp.token.clone()).await {
+        // println!("token验证成功：{:#?}", &userp.token);
+        return Json(LoginResponse::new(
+            userp.token.clone(),
+            userp,
+            0,
+            "".to_string(),
+        ));
     } else {
-        code = -1;
-        errmsg = "用户名或密码错误!".to_owned();
-    }
-    return Json(LoginResponse::new(userp.clone(), code, token, errmsg));
+        if userp.userName.is_empty() || userp.userPwd.is_empty() {
+            // println!("用户名或密码为空：{:#?}", &userp.token);
+            return Json(LoginResponse::new(
+                "Bearer".to_string(),
+                userp.clone(),
+                -1,
+                "用户名及密码不能为空!".to_string(),
+            ));
+        } else {
+            let conn = pools.get().await.unwrap();
+            let userPhone = conn
+                .query_scalar_string(sql_bind!(
+                    "SELECT  userPhone  FROM dbo.sendMsg_users WHERE userName = @p1 AND userPwd = @p2",
+                    &userp.userName,
+                    &userp.userPwd
+                ))
+                .await
+                .unwrap();
 
-    // 加入任务
+            let mut token = String::from("Bearer");
+            let code: i32;
+            let mut errmsg = String::from("");
+
+            if let Some(value) = userPhone {
+                token = Claims::get_token(value.to_owned()).await;
+                code = 0;
+            } else {
+                code = -1;
+                errmsg = "用户名或密码错误!".to_owned();
+            }
+            // if code == 0 {println!("创建token成功：{:#?}", &userp.token);}else{println!("用户名或密码错误!")}
+            return Json(LoginResponse::new(token, userp.clone(), code, errmsg));
+        }
+    } // 加入任务
+}
+
+// #[get("/unauthorized")]
+// pub async fn unauthorized() -> &'static str {
+//     println!("unauthorized");
+//     return "unauthorized"
+// }
+#[post("/Token_UnAuthorized", format = "json", data = "<user>")]
+pub async fn Token_UnAuthorized(user: Json<LoginUser>) -> Json<LoginResponse> {
+    let Json(userp) = user;
+
+    // println!("unauthorized");
+    return Json(LoginResponse::new(
+        "Bearer".to_string(),
+        userp.clone(),
+        -1,
+        "Token_UnAuthorized".to_string(),
+    ));
 }

@@ -18,6 +18,7 @@ impl FormatTime for LocalTime {
         )
     }
 }
+
 ///日志追踪
 pub fn init() {
     // 创建一个小时滚动的日志记录器
@@ -34,17 +35,18 @@ pub fn init() {
         .with_span_events(FmtSpan::CLOSE)
         .with_writer(file_appender) //采用写入到本地日志文件中
         .with_timer(LocalTime)
+        //如下不常用
+        // .with_file(true)
+        // .with_line_number(true)
+        // .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        // .with_timer(LocalTime)
+        // .with_target(false)
+        // .with_thread_ids(true)
+        // .with_thread_names(true)
+        // .fmt_fields(tracing_subscriber::fmt::format::debug_fn(|writer, field, value| {
+        //     write!(writer, "{} : {:?}\t", field, value)
+        // }))
         .finish();
-    // .with_file(true)
-    // .with_line_number(true)
-    //.with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-    // .with_timer(LocalTime)
-    // .with_target(false)
-    // .with_thread_ids(true)
-    // .with_thread_names(true)
-    // .fmt_fields(tracing_subscriber::fmt::format::debug_fn(|writer, field, value| {
-    //     write!(writer, "{} : {:?}\t", field, value)
-    // }))
 
     tracing::subscriber::set_global_default(subscriber).unwrap();
 }

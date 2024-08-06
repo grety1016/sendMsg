@@ -1,0 +1,18 @@
+[package]
+name = "eventful"
+version = "0.1.1"
+edition = "2021"
+description = "事件订阅分发器"
+repository = "https://git.kintree.work/rust/eventful"
+publish = ["kintree"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tracing = "0.1.37"
+tokio = { version = "1.2.0", features = ["rt", "sync"] }
+lazy_static = "1.4.0"
+
+[dev-dependencies]
+tracing-subscriber = "0.3.16"
+tokio = { version = "1.2.0", features = ["full"] }

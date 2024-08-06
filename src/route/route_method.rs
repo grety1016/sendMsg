@@ -30,21 +30,34 @@ impl Fairing for TokenFairing {
     }
 
     async fn on_request(&self, req: &mut Request<'_>, _data: &mut Data<'_>) {
-        let token = req.headers().get_one("Authorization");
-        let mut verifyResult: bool = false;
-        if let Some(value) = token {
-            verifyResult = Claims::verify_token(value.to_string());
+        
+        // println!("{:#?}\n{:#?}\n{:#?}\n{:#?}", req.uri(), req.method(), req.headers().to_owned(),req.to_string());
+        /*************************************************************************************
+        如下代码用于验证token，并且是POST方法才生效*/
+        if req.uri().to_string() == "/user/login" && req.method() == Method::Post {
+            let token = req.headers().get_one("Authorization");
+            let mut verifyResult: bool = false;
+            if let Some(value) = token {
+                verifyResult = Claims::verify_token(value.to_string()).await;
+            }
+
+            if verifyResult == true {
+                // println!("验证成功");
+                return;
+            } else {
+                if req.uri().to_string() == "/user/login" {
+                    return;
+                } else {
+                    let url = Origin::parse("/Token_UnAuthorized").unwrap();
+                    req.set_uri(url);
+                    // println!("{:#?}", req);
+                    // println!("验证失败");
+                    return;
+                }
+            }
         }
-        //println!("{}", verifyResult);
-        if verifyResult == true {}
-
-        // if verifyResult == false {
-        //     let url = Origin::parse("/").unwrap();
-
-        //     //println!("{:#?}", req.client_ip());
-        //     req.set_uri(url);
-        //     req.set_method(Method::Get);
-        // }
+        /*************************************************************************************
+        如上代码用于验证token，并且是POST方法才生效*/
     }
 }
 
@@ -53,6 +66,7 @@ impl Fairing for TokenFairing {
 pub struct LoginUser {
     pub userName: String,
     pub userPwd: String,
+    pub token: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -64,7 +78,7 @@ pub struct LoginResponse {
     errmsg: String,
 }
 impl LoginResponse {
-    pub fn new(data: LoginUser, code: i32, token: String, errmsg: String) -> Self {
+    pub fn new(token: String, data: LoginUser, code: i32, errmsg: String) -> Self {
         LoginResponse {
             code,
             token,
@@ -88,7 +102,7 @@ impl Claims {
         Claims { sub, exp }
     }
 
-    pub fn get_token(usrPhone: String) -> String {
+    pub async fn get_token(usrPhone: String) -> String {
         let mut secretKey =
             env::var("TokenSecretKey").unwrap_or_else(|_| String::from("kephi520."));
 
@@ -104,10 +118,10 @@ impl Claims {
             &EncodingKey::from_secret(secretKey.as_ref()),
         )
         .unwrap();
-        println!("token:{:#?}", token);
+        // println!("token:{:#?}", token);
         token
     }
-    pub fn verify_token(token: String) -> bool {
+    pub async fn verify_token(token: String) -> bool {
         let mut secretKey =
             env::var("TokenSecretKey").unwrap_or_else(|_| String::from("kephi520."));
 
