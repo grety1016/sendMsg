@@ -86,7 +86,8 @@ async fn main() -> std_Result<(), rocket::Error> {
     #[allow(unused)]
     let (tx, mut rx) = broadcast::channel::<String>(200);
 
-    let tx2 = tx.clone();
+    #[allow(unused_variables)]
+    // let tx2 = tx.clone();
     // tokio::spawn(async move {
     //     loop {
     //         tokio::time::sleep(Duration::from_millis(3000)).await;
@@ -136,7 +137,7 @@ async fn main() -> std_Result<(), rocket::Error> {
         .manage(pools)
         .manage(tx)
         .manage(rx)
-        .mount("/", routes![index, phone, shutdown, Token_UnAuthorized, ws])
+        .mount("/", routes![index, phone, shutdown, Token_UnAuthorized, ws,receiveMsg])
         .mount("/user", routes![login])
         .launch()
         .await?;

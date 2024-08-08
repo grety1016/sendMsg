@@ -1,10 +1,11 @@
 use std::{borrow::Borrow, io, result::Result};
 
 use httprequest::Request;
-use rocket::http::hyper::request;
+use rocket::{data::{self, FromData}, http::hyper::request};
 //引入rocket
 #[allow(unused)]
 use rocket::{
+    data::{Data, ToByteUnit},
     self, build,
     config::Config,
     fairing::AdHoc,
@@ -40,22 +41,14 @@ use either::*;
 pub mod route_method;
 use route_method::*;
 
-pub struct WebSocketHandler;
+ 
 
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for WebSocketHandler {
-    type Error = ();
-    async fn from_request(request: &'r rocketRequest<'_>) -> Outcome<Self, Self::Error> {
-        println!("{:#?}", request);
-        Outcome::Success(WebSocketHandler)
-    }
-}
+ 
 
 #[get("/ws")]
 pub async fn ws(
     ws: WebSocket,
-    tx: &State<Sender<String>>,
-    request: WebSocketHandler,
+    tx: &State<Sender<String>>
 ) -> rocket_ws::Channel<'static> {
     let mut rx = tx.subscribe();
     ws.channel(move |mut stream| {
@@ -83,10 +76,6 @@ pub async fn ws(
                     }
 
                    }
-
-
-
-
                 }
             }
         })
@@ -138,8 +127,30 @@ pub fn shutdown(shutdown: Shutdown) -> &'static str {
     }
 }
 
-#[post("/")]
-pub async fn post_index() -> &'static str {
+//接收文本消息结构中的文字
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Text{
+    pub content:String,
+}
+//接收消息文本结构 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RecvMessage{
+    pub senderStaffId:String,
+    pub text:Option<Text>,
+    pub content:Option<Content>,
+    pub msgtype:String,
+} 
+//接收语音消息结构中的文字
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Content{
+    pub recognition:String,
+} 
+
+ 
+
+#[post("/receiveMsg",format = "json", data = "<data>")]
+pub async fn receiveMsg(data:Json<RecvMessage>) -> &'static str {
+    println!("{:#?}", data);
     "post_index"
 }
 
