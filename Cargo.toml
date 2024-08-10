@@ -50,6 +50,8 @@ rust-crypto = { version = "0.2.36" }
 uuid = { version = "1", features = ["v4"] }
 #rocket
 rocket_ws = "0.1.1"
+##MAC
+mac_address="1.1.7"
 
 [profile.release]
 opt-level = 3

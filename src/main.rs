@@ -30,7 +30,7 @@ pub use std::result::Result as std_Result;
 #[allow(unused)]
 use std::{
     fs::File,
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr,UdpSocket},
     sync::{Arc, Mutex},
 };
 //消息接口模块
@@ -45,6 +45,13 @@ use route::*;
 pub mod log_record;
 pub use log_record::*;
 
+//网络请求
+use httprequest::{Client};
+
+//MAC地址
+use mac_address::get_mac_address;
+
+
 //使用静态库
 use lazy_static::lazy_static;
 
@@ -56,6 +63,16 @@ lazy_static! {
 async fn main() -> std_Result<(), rocket::Error> {
     //初始化trancing日志追踪
     init();
+
+    //获取IP地址及mac地址
+    // tokio::spawn(async move{
+    //     let reqwest = Client::new();
+    //     let response = reqwest.get("https://api.ipify.org?format=text").send().await.unwrap();
+    //     let ip = response.text().await.unwrap();
+    //     println!("外网 IP  地址: {}", ip);
+    //     let ruststr = format!(r#"{{"ip":"{}"}}"#,"https://www.baidu.com");
+    //     println!("ruststr: {}", ruststr);
+    // });
 
     //创建一个测试循环来判断
     // let _task = tokio::task::spawn(async move {
@@ -122,9 +139,9 @@ async fn main() -> std_Result<(), rocket::Error> {
     //rocket启动配置
     let config = Config {
         //tls: Some(tls_config),需要增加TLS时使用
-        address: IpAddr::V4(Ipv4Addr::new(192, 168, 0, 31)),
+        address: IpAddr::V4(Ipv4Addr::new(192,168,0,31)),
         // address: IpAddr::V4(Ipv4Addr::new(192, 168, 0, 31)),
-        port: 80,
+        port: 8000,
         //cli_colors: false,
         ..Default::default()
     };

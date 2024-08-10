@@ -52,3 +52,22 @@
 //    "sessionWebhook":"https://oapi.dingtalk.com/robot/sendBySession?session=7f35322bea53db11060aadd875bdbe42"
 //    "robotCode":"dingrw2omtorwpetxqop"
 //    "msgtype":"picture"}
+
+
+// {
+//     "title": "金蝶流程审批",
+//     "text": "您有金蝶待办事项，请及时处理！",
+//     "singleTitle": "点击查看流程详情",
+//     "singleURL": "http://210ie6ur7254.vicp.fun/flowform"
+// }
+
+// {
+//     "title": "金蝶流程审批",
+//     "text": "您有金蝶待办事项，请及时处理！",
+//     "actionTitle1": "金蝶流程待办",
+//     "actionURL1": "http://210ie6ur7254.vicp.fun",
+//     "title": "金蝶流程审批",
+//     "text": "您有金蝶待办事项，请及时处理！",
+//     "actionTitle2": "金蝶流程待办",
+//     "actionURL2": "http://210ie6ur7254.vicp.fun",
+// }
