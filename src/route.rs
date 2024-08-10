@@ -170,7 +170,7 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
 
 #[post("/login", format = "json", data = "<user>")]
 pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResponse> {
-    let Json(userp) = user;
+    let Json(mut userp) = user;
     // assert_eq!(userp.token.is_empty(),false);
     // assert_eq!(Claims::verify_token(userp.token.clone()).await,true);
     if !userp.token.is_empty() && Claims::verify_token(userp.token.clone()).await {
@@ -182,31 +182,32 @@ pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<Login
             "".to_string(),
         ));
     } else {
-        if userp.userName.is_empty() || userp.userPwd.is_empty() {
+        if userp.userPhone.is_empty() || userp.smsCode.is_empty() {
             // println!("用户名或密码为空：{:#?}", &userp.token);
             return Json(LoginResponse::new(
                 "Bearer".to_string(),
                 userp.clone(),
                 -1,
-                "用户名及密码不能为空!".to_string(),
+                "手机号或验证码不能为空!".to_string(),
             ));
         } else {
-            let conn = pools.get().await.unwrap();
-            let userPhone = conn
-                .query_scalar_string(sql_bind!(
-                    "SELECT  userPhone  FROM dbo.sendMsg_users WHERE userName = @p1 AND userPwd = @p2",
-                    &userp.userName,
-                    &userp.userPwd
-                ))
-                .await
-                .unwrap();
-
+            // let conn = pools.get().await.unwrap();
+            // let userPhone = conn
+            //     .query_scalar_string(sql_bind!(
+            //         "SELECT  userPhone  FROM dbo.sendMsg_users WHERE userName = @p1 AND userPwd = @p2",
+            //         &userp.userName,
+            //         &userp.userPwd
+            //     ))
+            //     .await
+            //     .unwrap();
+            let userPhone = Some("15345923407".to_owned());
             let mut token = String::from("Bearer");
             let code: i32;
             let mut errmsg = String::from("");
 
             if let Some(value) = userPhone {
                 token = Claims::get_token(value.to_owned()).await;
+                userp.smsCode="000000".to_owned();
                 code = 0;
             } else {
                 code = -1;
