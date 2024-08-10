@@ -64,27 +64,27 @@ impl Fairing for TokenFairing {
 //创建JWT结构体
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LoginUser {
-    pub userName: String,
-    pub userPwd: String,
+    pub userPhone: String,
+    pub smsCode: String,
     pub token: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoginResponse {
-    userName: String,
-    userPwd: String,
+    userPhone: String,
+    smsCode: String,
     token: String,
     code: i32, // 0：成功，非0：失败
-    errmsg: String,
+    errMsg: String,
 }
 impl LoginResponse {
-    pub fn new(token: String, data: LoginUser, code: i32, errmsg: String) -> Self {
+    pub fn new(token: String, data: LoginUser, code: i32, errMsg: String) -> Self {
         LoginResponse {
             code,
             token,
-            userName: data.userName,
-            userPwd: "".to_owned(),
-            errmsg,
+            userPhone: data.userPhone,
+            smsCode: "".to_owned(),
+            errMsg,
         }
     }
 }
