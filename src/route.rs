@@ -169,7 +169,7 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
 }
 
 #[post("/login", format = "json", data = "<user>")]
-pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResponse> {
+pub async fn login<'r>(user: Json<LoginUser>, _pools: &State<Pool>) -> Json<LoginResponse> {
     let Json(mut userp) = user;
     // assert_eq!(userp.token.is_empty(),false);
     // assert_eq!(Claims::verify_token(userp.token.clone()).await,true);
