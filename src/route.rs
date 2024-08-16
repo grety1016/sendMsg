@@ -40,6 +40,8 @@ use either::*;
 
 pub mod route_method;
 use route_method::*;
+//随机生成数字 
+use rand::Rng;
 
  
 
@@ -89,31 +91,37 @@ async fn handle_message(
     stream.send(msg.into()).await?;
     Ok(())
 }
-#[get("/?<phone>")]
-pub async fn phone(phone: String, pools: &State<Pool>) -> String {
-    let conn = pools.get().await.unwrap();
-    let is_exist = conn
-        .exec(sql_bind!(
-            "IF EXISTS(SELECT 1 FROM UserID WITH (NOLOCK) WHERE userphone = @p1) select 1",
-            &phone
-        ))
-        .await
-        .unwrap();
-    if is_exist == 0 {
-        return "游客，您好！当前用户不存在,请联系管理员咨询！".to_string();
-    }
 
-    let result = conn
-        .query_scalar_string(sql_bind!(
-            "UPDATE dbo.UserID SET jointime = getdate() WHERE  userphone = @p1; 
-        SELECT username FROM UserID WITH(NOLOCK) WHERE userphone = @p1;
-        ",
-            &phone
-        ))
-        .await
-        .unwrap();
-    let name = result.unwrap();
-    format!("{} 女士/先生,欢迎您加入快先森金蝶消息接口！", name)
+#[get("/getsmscode?<userphone>")]
+pub async fn getSmsCode(userphone: String, pools: &State<Pool>) -> Json<LoginResponse> {
+    let mut random_number:i32=0;
+    let mut code = 0;
+    let mut errMsg = "".to_owned(); 
+    let mut smsCode = 0;
+
+    let conn = pools.get().await.unwrap();
+
+    let result = conn.query_scalar_i32(sql_bind!("SELECT  DATEDIFF(second, createdtime, GETDATE())  FROM dbo.sendMsg_users WHERE userPhone = @p1", &userphone)).await.unwrap();
+    if let Some(val) = result{
+        if val < 60 {
+            code = -2;
+            errMsg="操作过于频繁，请复制最近一次验证码或一分钟后重试".to_owned();
+        }
+        let mut rng = rand::thread_rng();
+        random_number  = rng.gen_range(100000..1000000);     
+    }else {
+        errMsg = "该手机号未注册!".to_owned();
+        code = -1;
+    }
+    if code == 0{
+        smsCode = random_number.clone(); 
+        let _exec = conn.exec(sql_bind!("UPDATE dbo.sendMsg_users SET smsCode = @p1,createdtime = getdate() WHERE userPhone = @p2",random_number,&userphone)).await.unwrap();  
+    }
+           
+    
+             
+    return Json(LoginResponse{userPhone:userphone,smsCode,token:"".to_owned(),code,errMsg});
+ 
 }
 
 #[get("/shutdown")]

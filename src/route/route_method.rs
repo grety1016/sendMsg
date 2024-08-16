@@ -71,11 +71,11 @@ pub struct LoginUser {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoginResponse {
-    userPhone: String,
-    smsCode: String,
-    token: String,
-    code: i32, // 0：成功，非0：失败
-    errMsg: String,
+   pub userPhone: String,
+   pub smsCode: i32,
+   pub token: String,
+   pub code: i32, // 0：成功，非0：失败
+   pub errMsg: String,
 }
 impl LoginResponse {
     pub fn new(token: String, data: LoginUser, code: i32, errMsg: String) -> Self {
@@ -83,7 +83,7 @@ impl LoginResponse {
             code,
             token,
             userPhone: data.userPhone,
-            smsCode: "".to_owned(),
+            smsCode: 0,
             errMsg,
         }
     }

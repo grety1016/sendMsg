@@ -52,6 +52,8 @@ uuid = { version = "1", features = ["v4"] }
 rocket_ws = "0.1.1"
 ##MAC
 mac_address="1.1.7"
+##随机数
+rand='0.8'
 
 [profile.release]
 opt-level = 3

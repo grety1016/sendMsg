@@ -2126,6 +2126,7 @@ dependencies = [
  "lazy_static",
  "mac_address",
  "mssql",
+ "rand 0.8.5",
  "reqwest",
  "rocket",
  "rocket_cors",

@@ -154,8 +154,8 @@ async fn main() -> std_Result<(), rocket::Error> {
         .manage(pools)
         .manage(tx)
         .manage(rx)
-        .mount("/", routes![index, phone, shutdown, Token_UnAuthorized, ws,receiveMsg])
-        .mount("/user", routes![login])
+        .mount("/", routes![index, shutdown, Token_UnAuthorized, ws,receiveMsg])
+        .mount("/user", routes![login,getSmsCode])
         .launch()
         .await?;
 
