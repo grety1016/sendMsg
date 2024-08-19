@@ -418,45 +418,45 @@ pub async fn local_thread() {
     //获取一个数据连接池对象
     let pools = sendmsg.buildpools(6, 2).unwrap();
 
-    //获取数据库中待办满足发送消息的流程数量
-    let sendmsgnum = sendmsg.get_send_num(&pools).await;
-    info!("获取到需发送的列表用户数：{}", sendmsgnum);
+    // //获取数据库中待办满足发送消息的流程数量
+    // let sendmsgnum = sendmsg.get_send_num(&pools).await;
+    // info!("获取到需发送的列表用户数：{}", sendmsgnum);
 
-    //初始化广州野马获取access_token的对象
-    let gzym_ddtoken = DDToken::new(
-        "https://oapi.dingtalk.com/gettoken",
-        "dingrw2omtorwpetxqop",
-        "Bcrn5u6p5pQg7RvLDuCP71VjIF4ZxuEBEO6kMiwZMKXXZ5AxQl_I_9iJD0u4EQ-N",
-    );
+    // //初始化广州野马获取access_token的对象
+    // let gzym_ddtoken = DDToken::new(
+    //     "https://oapi.dingtalk.com/gettoken",
+    //     "dingrw2omtorwpetxqop",
+    //     "Bcrn5u6p5pQg7RvLDuCP71VjIF4ZxuEBEO6kMiwZMKXXZ5AxQl_I_9iJD0u4EQ-N",
+    // );
 
-    //广州野马获取实时access_token
-    let gzym_access_token = gzym_ddtoken.get_token().await;
-    info!(
-        "gzym_access_token:{},robotcode:dingrw2omtorwpetxqop",
-        gzym_access_token
-    );
+    // //广州野马获取实时access_token
+    // let gzym_access_token = gzym_ddtoken.get_token().await;
+    // info!(
+    //     "gzym_access_token:{},robotcode:dingrw2omtorwpetxqop",
+    //     gzym_access_token
+    // );
 
-    //初始化总部获取access_token的对象
-    let zb_ddtoken = DDToken::new(
-        "https://oapi.dingtalk.com/gettoken",
-        "dingzblrl7qs6pkygqcn",
-        "26GGYRR_UD1VpHxDBYVixYvxbPGDBsY5lUB8DcRqpSgO4zZax427woZTmmODX4oU",
-    );
+    // //初始化总部获取access_token的对象
+    // let zb_ddtoken = DDToken::new(
+    //     "https://oapi.dingtalk.com/gettoken",
+    //     "dingzblrl7qs6pkygqcn",
+    //     "26GGYRR_UD1VpHxDBYVixYvxbPGDBsY5lUB8DcRqpSgO4zZax427woZTmmODX4oU",
+    // );
 
-    //总部获取实时access_token
-    let zb_access_token = zb_ddtoken.get_token().await;
-    info!(
-        "zb_access_token:{},robotcode:dingzblrl7qs6pkygqcn",
-        zb_access_token
-    );
+    // //总部获取实时access_token
+    // let zb_access_token = zb_ddtoken.get_token().await;
+    // info!(
+    //     "zb_access_token:{},robotcode:dingzblrl7qs6pkygqcn",
+    //     zb_access_token
+    // );
 
-    //获取userid
-    sendmsg
-        .get_userid_list(&pools, &gzym_access_token, &zb_access_token)
-        .await;
+    // //获取userid
+    // sendmsg
+    //     .get_userid_list(&pools, &gzym_access_token, &zb_access_token)
+    //     .await;
 
-    //发送消息
-    sendmsg
-        .execute_send_msgs(&pools, &gzym_access_token, &zb_access_token)
-        .await;
+    // //发送消息
+    // sendmsg
+    //     .execute_send_msgs(&pools, &gzym_access_token, &zb_access_token)
+    //     .await;
 }

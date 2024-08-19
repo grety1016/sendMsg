@@ -46,7 +46,8 @@ pub mod log_record;
 pub use log_record::*;
 
 //网络请求
-use httprequest::{Client};
+ 
+use httprequest::Client;
 
 //MAC地址
 use mac_address::get_mac_address;
@@ -63,37 +64,7 @@ lazy_static! {
 async fn main() -> std_Result<(), rocket::Error> {
     //初始化trancing日志追踪
     init();
-
-    //获取IP地址及mac地址
-    // tokio::spawn(async move{
-    //     let reqwest = Client::new();
-    //     let response = reqwest.get("https://api.ipify.org?format=text").send().await.unwrap();
-    //     let ip = response.text().await.unwrap();
-    //     println!("外网 IP  地址: {}", ip);
-    //     let ruststr = format!(r#"{{"ip":"{}"}}"#,"https://www.baidu.com");
-    //     println!("ruststr: {}", ruststr);
-    // });
-
-    //创建一个测试循环来判断
-    // let _task = tokio::task::spawn(async move {
-    //     loop {
-    //         {
-    //             let mut value = IS_WORKING.lock().unwrap();
-    //             *value = true;
-    //         }
-    //         //消息接口处理方法的封装
-    //         let _smg = local_thread().await;
-    //         info!("Task is working!");
-    //         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    //         {
-    //             let mut value = IS_WORKING.lock().unwrap();
-    //             *value = false;
-    //         }
-    //         info!("Task was done!");
-    //         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
-    //     }
-    // });
+    
 
     //创建消息对象用于生成数据库连接池
     let sendmsg = SendMSG::new();
@@ -103,38 +74,23 @@ async fn main() -> std_Result<(), rocket::Error> {
     #[allow(unused)]
     let (tx, mut rx) = broadcast::channel::<String>(200);
 
-    #[allow(unused_variables)]
-    // let tx2 = tx.clone();
-    // tokio::spawn(async move {
-    //     loop {
-    //         tokio::time::sleep(Duration::from_millis(3000)).await;
-    //         tx2.send(String::from("Task1 completed!")).unwrap();
-    //     }
-    // });
-    // let tx3 = tx.clone();
+   
 
-    // tokio::spawn(async move {
-    //     loop {
-    //         tokio::time::sleep(Duration::from_millis(3000)).await;
-    //         tx3.send(String::from("Task2 completed!")).unwrap();
-    //     }
-    // });
-
-    //使用rocket_cors处理跨域同源策略问题：
-    let allowed_origins = AllowedOrigins::all();
-    //cors请求处理配置
-    let cors = CorsOptions {
-        allowed_origins,
-        allowed_methods: vec![Method::Get, Method::Post, Method::Put, Method::Delete]
-            .into_iter()
-            .map(From::from)
-            .collect(),
-        allowed_headers: rocket_cors::AllowedHeaders::all(),
-        allow_credentials: true,
-        ..Default::default()
-    }
-    .to_cors()
-    .expect("CORS configuration failed");
+    // //使用rocket_cors处理跨域同源策略问题：
+    // let allowed_origins = AllowedOrigins::all();
+    // //cors请求处理配置
+    // let cors = CorsOptions {
+    //     allowed_origins,
+    //     allowed_methods: vec![Method::Get, Method::Post, Method::Put, Method::Delete]
+    //         .into_iter()
+    //         .map(From::from)
+    //         .collect(),
+    //     allowed_headers: rocket_cors::AllowedHeaders::all(),
+    //     allow_credentials: true,
+    //     ..Default::default()
+    // }
+    // .to_cors()
+    // .expect("CORS configuration failed");
 
     //rocket启动配置
     let config = Config {
@@ -150,11 +106,11 @@ async fn main() -> std_Result<(), rocket::Error> {
     let _rocket = rocket::custom(config)
         //::build()
         .attach(TokenFairing)
-        .attach(cors)
+        // .attach(cors)
         .manage(pools)
         .manage(tx)
         .manage(rx)
-        .mount("/", routes![index, shutdown, Token_UnAuthorized, ws,receiveMsg])
+        .mount("/", routes![Token_UnAuthorized,receiveMsg])
         .mount("/user", routes![login,getSmsCode])
         .launch()
         .await?;

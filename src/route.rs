@@ -154,6 +154,7 @@ pub struct Content{
     pub recognition:String,
 } 
 
+
  
 
 #[post("/receiveMsg",format = "json", data = "<data>")]
