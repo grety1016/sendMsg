@@ -98,7 +98,7 @@ pub struct Claims {
 impl Claims {
     pub fn new(sub: String) -> Self {
         let nowTimeStamp = jsonwebtoken::get_current_timestamp();
-        let exp = nowTimeStamp + 31 * 24 * 60 * 60; //设置token过期时间为一周
+        let exp = nowTimeStamp + 120;//31 * 24 * 60 * 60; //设置token过期时间为一个月
         Claims { sub, exp }
     }
 
