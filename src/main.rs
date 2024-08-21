@@ -34,7 +34,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 //消息接口模块
-pub mod sendmsg;
+mod sendmsg;
 use sendmsg::*;
 
 //路由定义模块
@@ -110,7 +110,7 @@ async fn main() -> std_Result<(), rocket::Error> {
         .manage(pools)
         .manage(tx)
         .manage(rx)
-        .mount("/", routes![Token_UnAuthorized,receiveMsg])
+        .mount("/", routes![index,Token_UnAuthorized,receiveMsg])
         .mount("/user", routes![login,getSmsCode])
         .launch()
         .await?;

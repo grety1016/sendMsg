@@ -43,6 +43,11 @@ use route_method::*;
 //随机生成数字 
 use rand::Rng;
 
+//引入sendmsg模块
+
+use crate::sendmsg::*;
+ 
+
  
 
  
@@ -100,22 +105,49 @@ pub async fn getSmsCode(userphone: String, pools: &State<Pool>) -> Json<LoginRes
     let mut smsCode = 0;
 
     let conn = pools.get().await.unwrap();
-
+    //查询当前手机是否在消息用户列表中存在有效验证码
     let result = conn.query_scalar_i32(sql_bind!("SELECT  DATEDIFF(second, createdtime, GETDATE())  FROM dbo.sendMsg_users WHERE userPhone = @p1", &userphone)).await.unwrap();
+    //存在后判断最近一次发送时长是否在60秒内
     if let Some(val) = result{
-        if val < 60 {
+        if val <= 60 {
             code = -2;
             errMsg="操作过于频繁，请复制最近一次验证码或一分钟后重试".to_owned();
-        }
-        let mut rng = rand::thread_rng();
-        random_number  = rng.gen_range(100000..1000000);     
+        }else{
+            let mut rng = rand::thread_rng();
+            random_number  = rng.gen_range(100000..1000000);             
+        }            
     }else {
         errMsg = "该手机号未注册!".to_owned();
         code = -1;
     }
+    //如果用户存在并在60秒内未发送验证码，则发送验证码
     if code == 0{
         smsCode = random_number.clone(); 
-        let _exec = conn.exec(sql_bind!("UPDATE dbo.sendMsg_users SET smsCode = @p1,createdtime = getdate() WHERE userPhone = @p2",random_number,&userphone)).await.unwrap();  
+        let sendinfo = conn.query_first_row(sql_bind!("UPDATE dbo.sendMsg_users SET smsCode = @p1,createdtime = getdate() WHERE userPhone = @p2
+        SELECT  dduserid,userphone,robotcode,smscode   FROM sendMsg_users  WITH(NOLOCK)  WHERE userphone = @P2
+        ",random_number,&userphone)).await.unwrap().unwrap();
+         
+        let mut smscode = SmsMessage::new("".to_owned(), sendinfo.try_get_str(0).unwrap().unwrap(), sendinfo.try_get_str(1).unwrap().unwrap(), sendinfo.try_get_str(2).unwrap().unwrap(), sendinfo.try_get_i32(3).unwrap().unwrap());
+        
+
+        if smscode.robotcode == "dingrw2omtorwpetxqop"{
+            let gzym_ddtoken = DDToken::new(
+                "https://oapi.dingtalk.com/gettoken",
+                "dingrw2omtorwpetxqop",
+                "Bcrn5u6p5pQg7RvLDuCP71VjIF4ZxuEBEO6kMiwZMKXXZ5AxQl_I_9iJD0u4EQ-N",
+            );
+            smscode.ddtoken = gzym_ddtoken.get_token().await;
+        }else {
+            let zb_ddtoken = DDToken::new(
+                "https://oapi.dingtalk.com/gettoken",
+                "dingzblrl7qs6pkygqcn",
+                "26GGYRR_UD1VpHxDBYVixYvxbPGDBsY5lUB8DcRqpSgO4zZax427woZTmmODX4oU",
+            );
+            smscode.ddtoken = zb_ddtoken.get_token().await;
+            
+        }
+        smscode.send_smsCode().await;
+        
     }
            
     
@@ -172,14 +204,15 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
         .await
         .unwrap();
     if let Some(row) = result.fetch().await.unwrap() {
-        println!("test is work:{:?}!", row.try_get_i32(0).unwrap());
+        println!("server is working:{:?}!", row.try_get_i32(0).unwrap());
     }
+    crate::local_thread().await;
     "您好,欢迎使用快先森金蝶消息接口!!!"
 }
 
 #[post("/login", format = "json", data = "<user>")]
-pub async fn login<'r>(user: Json<LoginUser>, _pools: &State<Pool>) -> Json<LoginResponse> {
-    let Json(mut userp) = user;
+pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResponse> {
+    let Json(userp) = user;
     // assert_eq!(userp.token.is_empty(),false);
     // assert_eq!(Claims::verify_token(userp.token.clone()).await,true);
     if !userp.token.is_empty() && Claims::verify_token(userp.token.clone()).await {
@@ -200,27 +233,26 @@ pub async fn login<'r>(user: Json<LoginUser>, _pools: &State<Pool>) -> Json<Logi
                 "手机号或验证码不能为空!".to_string(),
             ));
         } else {
-            // let conn = pools.get().await.unwrap();
-            // let userPhone = conn
-            //     .query_scalar_string(sql_bind!(
-            //         "SELECT  userPhone  FROM dbo.sendMsg_users WHERE userName = @p1 AND userPwd = @p2",
-            //         &userp.userName,
-            //         &userp.userPwd
-            //     ))
-            //     .await
-            //     .unwrap();
-            let userPhone = Some("15345923407".to_owned());
-            let mut token = String::from("Bearer");
-            let code: i32;
+            let conn = pools.get().await.unwrap();
+            //查询当前用户列表中是否存在该手机及验证码，并且在3分钟时效内
+            let userPhone = conn
+                .query_scalar_string(sql_bind!(
+                    "SELECT  userPhone  FROM dbo.sendMsg_users WHERE userphone = @P1 AND smscode = @P2 AND   DATEDIFF(MINUTE, createdtime, GETDATE()) <= 3",
+                    &userp.userPhone,
+                    &userp.smsCode
+                ))
+                .await
+                .unwrap();
+            let mut token = String::from("");
+            // #[allow(unused)]
+            let mut code: i32 = 0;
             let mut errmsg = String::from("");
 
             if let Some(value) = userPhone {
                 token = Claims::get_token(value.to_owned()).await;
-                userp.smsCode="000000".to_owned();
-                code = 0;
             } else {
                 code = -1;
-                errmsg = "用户名或密码错误!".to_owned();
+                errmsg = "手机号或验证码错误!".to_owned();
             }
             // if code == 0 {println!("创建token成功：{:#?}", &userp.token);}else{println!("用户名或密码错误!")}
             return Json(LoginResponse::new(token, userp.clone(), code, errmsg));
