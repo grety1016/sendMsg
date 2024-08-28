@@ -30,7 +30,7 @@ pub use std::result::Result as std_Result;
 #[allow(unused)]
 use std::{
     fs::File,
-    net::{IpAddr, Ipv4Addr,UdpSocket},
+    net::{IpAddr, Ipv4Addr, UdpSocket},
     sync::{Arc, Mutex},
 };
 //消息接口模块
@@ -46,12 +46,11 @@ pub mod log_record;
 pub use log_record::*;
 
 //网络请求
- 
+
 use httprequest::Client;
 
 //MAC地址
 use mac_address::get_mac_address;
-
 
 //使用静态库
 use lazy_static::lazy_static;
@@ -64,7 +63,6 @@ lazy_static! {
 async fn main() -> std_Result<(), rocket::Error> {
     //初始化trancing日志追踪
     init();
-    
 
     //创建消息对象用于生成数据库连接池
     let sendmsg = SendMSG::new();
@@ -73,8 +71,6 @@ async fn main() -> std_Result<(), rocket::Error> {
     //创建多播消息通道
     #[allow(unused)]
     let (tx, mut rx) = broadcast::channel::<String>(200);
-
-   
 
     // //使用rocket_cors处理跨域同源策略问题：
     // let allowed_origins = AllowedOrigins::all();
@@ -95,7 +91,7 @@ async fn main() -> std_Result<(), rocket::Error> {
     //rocket启动配置
     let config = Config {
         //tls: Some(tls_config),需要增加TLS时使用
-        address: IpAddr::V4(Ipv4Addr::new(192,168,0,31)),
+        address: IpAddr::V4(Ipv4Addr::new(192, 168, 0, 39)),
         // address: IpAddr::V4(Ipv4Addr::new(192, 168, 0, 31)),
         port: 8000,
         //cli_colors: false,
@@ -110,8 +106,8 @@ async fn main() -> std_Result<(), rocket::Error> {
         .manage(pools)
         .manage(tx)
         .manage(rx)
-        .mount("/", routes![index,Token_UnAuthorized,receiveMsg])
-        .mount("/user", routes![login,getSmsCode])
+        .mount("/", routes![index, Token_UnAuthorized, receiveMsg])
+        .mount("/user", routes![login, getSmsCode])
         .launch()
         .await?;
 

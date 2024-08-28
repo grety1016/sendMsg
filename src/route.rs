@@ -272,7 +272,7 @@ pub async fn Token_UnAuthorized(user: Json<LoginUser>) -> Json<LoginResponse> {
     // println!("unauthorized");
     return Json(LoginResponse::new(
         "Bearer".to_string(),
-        userp.clone(),
+        userp,
         -1,
         "Token_UnAuthorized".to_string(),
     ));

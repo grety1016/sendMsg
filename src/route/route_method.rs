@@ -25,7 +25,7 @@ impl Fairing for TokenFairing {
     fn info(&self) -> fairing::Info {
         fairing::Info {
             name: "Token validation",
-            kind: fairing::Kind::Request,
+            kind: fairing::Kind::Request
         }
     }
 
@@ -98,7 +98,7 @@ pub struct Claims {
 impl Claims {
     pub fn new(sub: String) -> Self {
         let nowTimeStamp = jsonwebtoken::get_current_timestamp();
-        let exp = nowTimeStamp + 120;//31 * 24 * 60 * 60; //设置token过期时间为一个月
+        let exp = nowTimeStamp + 31 * 24 * 60 * 60; //设置token过期时间为一个月
         Claims { sub, exp }
     }
 
