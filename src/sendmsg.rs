@@ -142,23 +142,37 @@ impl DDUserid {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SmsMessage<'r>{
-    pub ddtoken:String,
-    dduserid:&'r str,
-    userphone:&'r str,   
-    pub robotcode:&'r str,
-    smscode:i32
+pub struct SmsMessage<'r> {
+    ddtoken: String,
+    dduserid: &'r str,
+    userphone: &'r str,
+    robotcode: &'r str,
+    smscode: i32,
 }
 
-impl<'r> SmsMessage<'r>{
-    pub fn new(ddtoken:String, dduserid:&'r str,userphone:&'r str, robotcode:&'r str, smscode:i32) -> SmsMessage<'r> {
+impl<'r> SmsMessage<'r> {
+    pub fn new(
+        ddtoken: String,
+        dduserid: &'r str,
+        userphone: &'r str,
+        robotcode: &'r str,
+        smscode: i32,
+    ) -> SmsMessage<'r> {
         SmsMessage {
             ddtoken,
             dduserid,
             userphone,
             robotcode,
-            smscode
+            smscode,
         }
+    }
+
+    pub fn set_ddtoken(&mut self, ddtoken: String) {
+        self.ddtoken = ddtoken;
+    }
+
+   pub fn get_rotobotcode(&self) -> &str {
+        self.robotcode
     }
 
     pub async fn send_smsCode(&mut self) {
@@ -166,7 +180,7 @@ impl<'r> SmsMessage<'r>{
         let mut request_heads: Vec<String> = Vec::new();
         request_heads.push("x-acs-dingtalk-access-token".to_owned());
         request_heads.push(self.ddtoken.to_string());
-        let msgParams = format!(r#"{{ "msgtype": "text","content": "{}"}}"#,self.smscode);
+        let msgParams = format!(r#"{{ "msgtype": "text","content": "{}"}}"#, self.smscode);
         //创建请求表体结构
         let mut request_body = HashMap::new();
         request_body.insert("msgParam", msgParams);
@@ -190,14 +204,13 @@ impl<'r> SmsMessage<'r>{
             .await;
         info!(
             "send smscode result:{:?},userphone:{}",
-            sendmsg,
-            self.userphone
+            sendmsg, self.userphone
         );
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct User<'r> {
+pub struct ProcessApproval<'r> {
     exeuser: &'r str,
     flownumber: &'r str,
     access_token: Option<&'r str>,
@@ -208,7 +221,7 @@ pub struct User<'r> {
     msgparams: &'r str,
 }
 
-impl<'r> User<'r> {
+impl<'r> ProcessApproval<'r> {
     //初始化用户实例,用于测试调试用
     pub fn new(
         exeuser: &'r str,
@@ -219,8 +232,8 @@ impl<'r> User<'r> {
         robotcode: &'r str,
         msgkey: &'r str,
         msgparams: &'r str,
-    ) -> User<'r> {
-        User {
+    ) -> ProcessApproval<'r> {
+        ProcessApproval {
             exeuser,
             flownumber,
             access_token,
@@ -339,7 +352,7 @@ impl SendMSG {
             .unwrap();
         num.unwrap()
     }
- 
+
     //获取userid表中未有userid的用户并回写useid(is working)
     pub async fn get_userlist<'r>(
         &self,
@@ -351,7 +364,7 @@ impl SendMSG {
         //创建userid列表
         let mut userid_list: Vec<Userid> = Vec::new();
         //获取数据库连接
-        let conn = pools.get().await.unwrap();      
+        let conn = pools.get().await.unwrap();
         //查询用户列表中未更新userid的用户
         let result: Vec<Row> = conn
             .query_collect_row(
@@ -374,7 +387,7 @@ impl SendMSG {
 
         //遍历userid_list用户，获取userid并更新回数据表
         for user in userid_list.iter_mut() {
-            let userid = Some(dduserid.get_userid(gzym_access_token, user.userphone).await);          
+            let userid = Some(dduserid.get_userid(gzym_access_token, user.userphone).await);
             match userid {
                 Some(v) => {
                     if v.len() > 0 {
@@ -386,7 +399,7 @@ impl SendMSG {
                             ))
                             .await
                             .unwrap();
-                    }else {
+                    } else {
                         let v = Some(dduserid.get_userid(zb_access_token, user.userphone).await);
                         let _exec = conn
                             .exec(sql_bind!(
@@ -398,7 +411,9 @@ impl SendMSG {
                             .unwrap();
                     }
                 }
-                _ => {println!("用户{}获取userid失败", user.userphone);},
+                _ => {
+                    println!("用户{}获取userid失败", user.userphone);
+                }
             }
         }
     }
@@ -411,7 +426,7 @@ impl SendMSG {
         zb_access_token: &'r str,
     ) {
         //创建用户对象列表
-        let mut user_list: Vec<User> = Vec::new();
+        let mut user_list: Vec<ProcessApproval> = Vec::new();
         //获取连接
         let conn = pools.get().await.unwrap();
 
@@ -429,7 +444,7 @@ impl SendMSG {
                 //info!("{}",zb_access_token);
                 access_token = zb_access_token;
             };
-            user_list.push(User::new(
+            user_list.push(ProcessApproval::new(
                 row.try_get_str(0).unwrap().unwrap(),
                 row.try_get_str(1).unwrap().unwrap(),
                 Some(access_token),
@@ -473,7 +488,7 @@ pub async fn local_thread() {
         .unwrap();
     //判断需要获取dduserid的用户大于0
     if addNewUsers > 0 {
-        info!("用户列表中dduserid为空的用户数:{}",addNewUsers);
+        info!("用户列表中dduserid为空的用户数:{}", addNewUsers);
         //初始化广州野马获取access_token的对象
         let gzym_ddtoken = DDToken::new(
             "https://oapi.dingtalk.com/gettoken",
@@ -488,7 +503,7 @@ pub async fn local_thread() {
             gzym_access_token
         );
 
-         //初始化总部获取access_token的对象
+        //初始化总部获取access_token的对象
         let zb_ddtoken = DDToken::new(
             "https://oapi.dingtalk.com/gettoken",
             "dingzblrl7qs6pkygqcn",
@@ -502,6 +517,8 @@ pub async fn local_thread() {
             zb_access_token
         );
         //循环遍历用户列表中未有dduserid的用户,并回写到消息用户列表中
-        sendmsg.get_userlist(&pools, &gzym_access_token, &zb_access_token).await;
-    } 
+        sendmsg
+            .get_userlist(&pools, &gzym_access_token, &zb_access_token)
+            .await;
+    }
 }
