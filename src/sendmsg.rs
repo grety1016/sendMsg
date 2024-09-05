@@ -171,7 +171,7 @@ impl<'r> SmsMessage<'r> {
         self.ddtoken = ddtoken;
     }
 
-   pub fn get_rotobotcode(&self) -> &str {
+    pub fn get_rotobotcode(&self) -> &str {
         self.robotcode
     }
 

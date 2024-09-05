@@ -3,17 +3,17 @@ use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, 
 
 use rocket::{
     data::{Data, ToByteUnit},
-    fairing::{self, Fairing},
-    http::uri::Origin,
-    http::Method,
+    fairing::{self, Fairing, Kind},
+    http::{uri::Origin, Method},
     request::Outcome,
-    Request, Response,
+    FromForm, Request, Response,
 };
 
 //Hash加密库:
 pub use crypto::{digest::Digest, sha2::Sha256};
 
-use serde::{Deserialize, Serialize}; //用于结构体上方的系列化宏
+use serde::{Deserialize, Serialize};
+use tracing::field; //用于结构体上方的系列化宏
 
 use std::env;
 
@@ -25,12 +25,12 @@ impl Fairing for TokenFairing {
     fn info(&self) -> fairing::Info {
         fairing::Info {
             name: "Token validation",
-            kind: fairing::Kind::Request
+            kind: Kind::Request | Kind::Response,
         }
     }
 
     async fn on_request(&self, req: &mut Request<'_>, _data: &mut Data<'_>) {
-        
+        // println!("{:#?}", req);
         // println!("{:#?}\n{:#?}\n{:#?}\n{:#?}", req.uri(), req.method(), req.headers().to_owned(),req.to_string());
         /*************************************************************************************
         如下代码用于验证token，并且是POST方法才生效*/
@@ -50,8 +50,6 @@ impl Fairing for TokenFairing {
                 } else {
                     let url = Origin::parse("/Token_UnAuthorized").unwrap();
                     req.set_uri(url);
-                    // println!("{:#?}", req);
-                    // println!("验证失败");
                     return;
                 }
             }
@@ -59,11 +57,16 @@ impl Fairing for TokenFairing {
         /*************************************************************************************
         如上代码用于验证token，并且是POST方法才生效*/
     }
+
+    // async fn on_response<'r>(&self, request: &'r Request<'_>, response: &mut Response<'r>) {
+    //     println!("{:#?},{:#?}", response.status(), response.body());
+    // }
 }
 
 //创建JWT结构体
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, FromForm)]
 pub struct LoginUser {
+    #[field(name=uncase("user_phone"))]
     pub userPhone: String,
     pub smsCode: String,
     pub token: String,
@@ -71,11 +74,11 @@ pub struct LoginUser {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoginResponse {
-   pub userPhone: String,
-   pub smsCode: i32,
-   pub token: String,
-   pub code: i32, // 0：成功，非0：失败
-   pub errMsg: String,
+    pub userPhone: String,
+    pub smsCode: i32,
+    pub token: String,
+    pub code: i32, // 0：成功，非0：失败
+    pub errMsg: String,
 }
 impl LoginResponse {
     pub fn new(token: String, data: LoginUser, code: i32, errMsg: String) -> Self {

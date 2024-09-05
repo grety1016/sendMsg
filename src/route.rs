@@ -1,32 +1,31 @@
-use std::{borrow::Borrow, io, result::Result};
-
 use httprequest::Request;
-use rocket::{
-    data::{self, FromData},
-    http::hyper::request,
-};
+use std::{borrow::Borrow, io, result::Result, time::Duration};
+use tracing::field;
 //引入rocket
-#[allow(unused)]
 use rocket::{
     self, build,
     config::Config,
+    data::{self, FromData},
     data::{Data, ToByteUnit},
     fairing::AdHoc,
+    form::{self, Form},
+    fs::relative,
+    fs::TempFile,
     futures::{SinkExt, StreamExt},
     get,
-    http::Method,
+    http::hyper::request,
     http::Status,
     launch, post,
-    request::{FromRequest, Outcome},
+    response::{status,stream::{Event, EventStream}},
     routes,
     serde::json::Json,
     tokio::sync::broadcast::{Receiver, Sender},
-    Request as rocketRequest, Shutdown, State,
+    FromForm, Request as rocketRequest, Response, Shutdown, State,
 };
 //引入rocket_ws
 use rocket_ws::{self, stream::DuplexStream, Message, WebSocket};
 //引入tokio
-use tokio::{self, select};
+use tokio::{self, select,task,time};
 //引入serde_json
 use serde::{de::value::CowStrDeserializer, Deserialize, Serialize};
 use serde_json::json; //用于结构体上方的系列化宏
@@ -50,6 +49,19 @@ use rand::Rng;
 
 use crate::sendmsg::*;
 
+#[derive(FromForm, Debug)]
+pub struct Upload<'r> {
+    file: Vec<TempFile<'r>>,
+}
+
+#[post("/upload", format = "multipart/form-data", data = "<form>")]
+pub async fn upload(mut form: Form<Upload<'_>>) {
+    for file in form.file.iter_mut() {
+        println!("file's name:{:#?}", file.name());
+        println!("file's size:{:#?}", file.len());
+    }
+}
+//websocket connection
 #[get("/ws")]
 pub async fn ws(ws: WebSocket, tx: &State<Sender<String>>) -> rocket_ws::Channel<'static> {
     let mut rx = tx.subscribe();
@@ -90,6 +102,20 @@ async fn handle_message(
 ) -> Result<(), rocket_ws::result::Error> {
     stream.send(msg.into()).await?;
     Ok(())
+}
+
+
+
+//SSE 连接
+#[get("/event_conn")]
+pub async fn event_conn() -> EventStream![]  {
+    EventStream! {
+        loop{
+            time::sleep(Duration::from_secs(1)).await;
+            yield Event::data("form server message");        
+        }       
+    }
+    
 }
 
 #[get("/getsmscode?<userphone>")]
@@ -188,13 +214,18 @@ pub struct Content {
 }
 
 #[post("/receiveMsg", format = "json", data = "<data>")]
-pub async fn receiveMsg(data: Json<RecvMessage>) -> &'static str {
+pub async fn receiveMsg(data: Json<RecvMessage>) {
     println!("{:#?}", data);
-    "post_index"
+}
+
+#[get("/test")]
+pub async fn test_fn() -> Result<Json<Content>, String> {
+    // Ok(Json(Content{recognition:"Ok".into()}))
+    Err("test_ERROR".into()) 
 }
 
 #[get("/")]
-pub async fn index(pools: &State<Pool>) -> &'static str {
+pub async fn index(pools: &State<Pool>) -> status::Custom<&'static str> {
     let conn = pools.get().await.unwrap();
 
     let mut result = conn
@@ -205,7 +236,10 @@ pub async fn index(pools: &State<Pool>) -> &'static str {
         println!("server is working:{:?}!", row.try_get_i32(0).unwrap());
     }
     crate::local_thread().await;
-    "您好,欢迎使用快先森金蝶消息接口!!!"
+    status::Custom(
+        Status::PayloadTooLarge,
+        "您好,欢迎使用快先森金蝶消息接口!!!",
+    )
 }
 
 #[post("/login", format = "json", data = "<user>")]
