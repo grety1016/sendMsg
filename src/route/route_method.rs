@@ -28,7 +28,7 @@ impl Fairing for TokenFairing {
             kind: Kind::Request | Kind::Response,
         }
     }
-//更新测试
+    //更新测试
     async fn on_request(&self, req: &mut Request<'_>, _data: &mut Data<'_>) {
         // println!("{:#?}", req);
         // println!("{:#?}\n{:#?}\n{:#?}\n{:#?}", req.uri(), req.method(), req.headers().to_owned(),req.to_string());
@@ -45,13 +45,9 @@ impl Fairing for TokenFairing {
                 // println!("验证成功");
                 return;
             } else {
-                if req.uri().to_string() == "/user/login" {
-                    return;
-                } else {
-                    let url = Origin::parse("/Token_UnAuthorized").unwrap();
-                    req.set_uri(url);
-                    return;
-                }
+                let url = Origin::parse("/Token_UnAuthorized").unwrap();
+                req.set_uri(url);
+                return;
             }
         }
         /*************************************************************************************
