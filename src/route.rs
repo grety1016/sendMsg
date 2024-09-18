@@ -16,7 +16,10 @@ use rocket::{
     http::hyper::request,
     http::Status,
     launch, post,
-    response::{status,stream::{Event, EventStream}},
+    response::{
+        status,
+        stream::{Event, EventStream},
+    },
     routes,
     serde::json::Json,
     tokio::sync::broadcast::{Receiver, Sender},
@@ -25,7 +28,7 @@ use rocket::{
 //引入rocket_ws
 use rocket_ws::{self, stream::DuplexStream, Message, WebSocket};
 //引入tokio
-use tokio::{self, select,task,time};
+use tokio::{self, select, task, time};
 //引入serde_json
 use serde::{de::value::CowStrDeserializer, Deserialize, Serialize};
 use serde_json::json; //用于结构体上方的系列化宏
@@ -104,18 +107,15 @@ async fn handle_message(
     Ok(())
 }
 
-
-
 //SSE 连接
 #[get("/event_conn")]
-pub async fn event_conn() -> EventStream![]  {
+pub async fn event_conn() -> EventStream![] {
     EventStream! {
         loop{
             time::sleep(Duration::from_secs(1)).await;
-            yield Event::data("form server message");        
-        }       
+            yield Event::data("form server message");
+        }
     }
-    
 }
 
 #[get("/getsmscode?<userphone>")]
@@ -221,7 +221,7 @@ pub async fn receiveMsg(data: Json<RecvMessage>) {
 #[get("/test")]
 pub async fn test_fn() -> Result<Json<Content>, String> {
     // Ok(Json(Content{recognition:"Ok".into()}))
-    Err("test_ERROR".into()) 
+    Err("test_ERROR".into())
 }
 
 #[get("/")]
@@ -290,6 +290,21 @@ pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<Login
             return Json(LoginResponse::new(token, userp.clone(), code, errmsg));
         }
     } // 加入任务
+}
+
+#[get("/getitemlist?<userphone>&<itemstatus>")]
+pub async fn getItemList(userphone: String, itemstatus: String, pool: &State<Pool>)->Json<Vec<FlowItemList>> {
+    let conn = pool.get().await.unwrap();
+    println!("userphone:{},itemstatus:{}", &userphone, &itemstatus);
+    let flowitemlist:Vec<FlowItemList> = conn
+        .query_collect(sql_bind!(
+            "SELECT * FROM getTodoList(@p1,@p2)",
+            &itemstatus,
+            &userphone            
+        ))
+        .await
+        .unwrap();
+   Json(flowitemlist)
 }
 
 // #[get("/unauthorized")]

@@ -15,9 +15,9 @@ pub use crypto::{digest::Digest, sha2::Sha256};
 use serde::{Deserialize, Serialize};
 use tracing::field; //用于结构体上方的系列化宏
 
-use std::env;
+use std::{borrow::Cow, env};
 
-/// Token验证Fairing
+/// Token验证Fairinge
 pub struct TokenFairing;
 //Token Fairing实现
 #[rocket::async_trait]
@@ -28,8 +28,15 @@ impl Fairing for TokenFairing {
             kind: Kind::Request | Kind::Response,
         }
     }
-//更新测试
+    //更新测试
     async fn on_request(&self, req: &mut Request<'_>, _data: &mut Data<'_>) {
+        // println!("{}", req.uri().path());
+        // println!("{}", req.uri());
+
+        let uri = req.uri().to_string().to_lowercase();
+        let url = Origin::try_from(uri).unwrap();
+        req.set_uri(url);
+        // println!("{}", url);
         // println!("{:#?}", req);
         // println!("{:#?}\n{:#?}\n{:#?}\n{:#?}", req.uri(), req.method(), req.headers().to_owned(),req.to_string());
         /*************************************************************************************
@@ -66,18 +73,22 @@ impl Fairing for TokenFairing {
 //创建JWT结构体
 #[derive(Serialize, Deserialize, Debug, Clone, FromForm)]
 pub struct LoginUser {
-    #[field(name=uncase("user_phone"))]
+    #[field(name=uncase("userphone"))]
     pub userPhone: String,
+    #[field(name=uncase("smscode"))]
     pub smsCode: String,
     pub token: String,
 }
-
-#[derive(Serialize, Deserialize, Debug)]
+//创建LoginResponse结构体
+#[derive(Serialize, Deserialize, Debug, FromForm)]
 pub struct LoginResponse {
+    #[field(name=uncase("userphone"))]
     pub userPhone: String,
+    #[field(name=uncase("smscode"))]
     pub smsCode: i32,
     pub token: String,
     pub code: i32, // 0：成功，非0：失败
+    #[field(name=uncase("errmsg"))]
     pub errMsg: String,
 }
 impl LoginResponse {
@@ -91,7 +102,25 @@ impl LoginResponse {
         }
     }
 }
+//创建FlowForm返回结构体
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FlowItemList {
+    eventName: String,
+    rn: i32,
+    fstatus: String,
+    fnumber: String,
+    fformtype: String,
+    fdisplayname: String,
+    todostatus: i32,
+    fname: String,
+    senderphone: String,
+    freceivernames: String,
+    fphone: String,
+    fprocinstid: String,
+    fcreatetime: String,
+}
 
+//创建JWT结构体
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,

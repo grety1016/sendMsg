@@ -74,6 +74,8 @@ async fn main() -> std_Result<(), rocket::Error> {
     let sendmsg = SendMSG::new();
     let pools = sendmsg.buildpools(60, 8).unwrap();
 
+    
+
     //创建多播消息通道
     #[allow(unused)]
     let (tx, mut rx) = broadcast::channel::<String>(200);
@@ -129,6 +131,7 @@ async fn main() -> std_Result<(), rocket::Error> {
         .mount("/public", FileServer::from(relative!("public")))
         .mount("/", routes![index, Token_UnAuthorized, receiveMsg, upload,test_fn,event_conn])
         .mount("/user", routes![login, getSmsCode])
+        .mount("/flowform", routes![getItemList])
         .launch()
         .await?;
 
