@@ -74,7 +74,7 @@ async fn main() -> std_Result<(), rocket::Error> {
     let sendmsg = SendMSG::new();
     let pools = sendmsg.buildpools(60, 8).unwrap();
 
-    
+  
 
     //创建多播消息通道
     #[allow(unused)]
@@ -105,7 +105,8 @@ async fn main() -> std_Result<(), rocket::Error> {
         //cli_colors: false,
         ..Default::default()
     };
-
+    
+ 
     let limits = Limits::new()
         .limit("json", 20.mebibytes())
         .limit("file", 20.mebibytes())
@@ -128,7 +129,7 @@ async fn main() -> std_Result<(), rocket::Error> {
         .manage(pools)
         .manage(tx)
         .manage(rx)
-        .mount("/public", FileServer::from(relative!("public")))
+        .mount("/public", FileServer::from("D:/public"))
         .mount("/", routes![index, Token_UnAuthorized, receiveMsg, upload,test_fn,event_conn])
         .mount("/user", routes![login, getSmsCode])
         .mount("/flowform", routes![getItemList])

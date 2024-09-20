@@ -70,7 +70,7 @@ pub async fn ws(ws: WebSocket, tx: &State<Sender<String>>) -> rocket_ws::Channel
     let mut rx = tx.subscribe();
     ws.channel(move |mut stream| {
         Box::pin(async move {
-            let mut _stream_clone = &stream;
+            // let mut _stream_clone = &stream;
             loop {
                 select! {
                     //等待接收前端消息来执行事件函数
@@ -135,7 +135,7 @@ pub async fn getSmsCode(userphone: String, pools: &State<Pool>) -> Json<LoginRes
             errMsg = "操作过于频繁，请复制最近一次验证码或一分钟后重试".to_owned();
         } else {
             let mut rng = rand::thread_rng();
-            random_number = rng.gen_range(100000..1000000);
+            random_number = rng.gen_range(1000..10000);
         }
     } else {
         errMsg = "该手机号未注册!".to_owned();
@@ -293,18 +293,22 @@ pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<Login
 }
 
 #[get("/getitemlist?<userphone>&<itemstatus>")]
-pub async fn getItemList(userphone: String, itemstatus: String, pool: &State<Pool>)->Json<Vec<FlowItemList>> {
+pub async fn getItemList(
+    userphone: String,
+    itemstatus: String,
+    pool: &State<Pool>,
+) -> Json<Vec<FlowItemList>> {
     let conn = pool.get().await.unwrap();
     println!("userphone:{},itemstatus:{}", &userphone, &itemstatus);
-    let flowitemlist:Vec<FlowItemList> = conn
+    let flowitemlist: Vec<FlowItemList> = conn
         .query_collect(sql_bind!(
             "SELECT * FROM getTodoList(@p1,@p2)",
             &itemstatus,
-            &userphone            
+            &userphone
         ))
         .await
         .unwrap();
-   Json(flowitemlist)
+    Json(flowitemlist)
 }
 
 // #[get("/unauthorized")]
