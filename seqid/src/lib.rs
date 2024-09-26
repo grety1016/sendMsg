@@ -44,7 +44,7 @@ impl SequentialObjectId {
         (ts, pid, rand_id)
     }
 
-  pub  fn machine_hash() -> u32 {
+    pub fn machine_hash() -> u32 {
         let host = hostname::get().unwrap_or_default();
         let host = host.into_string().unwrap_or_default();
         let mut hasher = md5::Context::new();
@@ -54,11 +54,11 @@ impl SequentialObjectId {
         (bytes[0] as u32) << 16 | (bytes[1] as u32) << 8 | (bytes[2] as u32)
     }
 
-  pub  fn pid() -> u16 {
+    pub fn pid() -> u16 {
         process::id() as _
     }
 
-  pub  fn next_rand_id() -> u32 {
+    pub fn next_rand_id() -> u32 {
         lazy_static::lazy_static! {
             static ref NEXT_RAND_ID: AtomicU32 = AtomicU32::new(rand::random());
         }
@@ -99,15 +99,20 @@ fn main() {
 mod tests {
     use crate::SequentialObjectId;
 
-    #[test]
-    fn test_pack() {
-        let ts = SequentialObjectId::current_ts();
-        let pid = SequentialObjectId::pid();
-        let machine_hash = SequentialObjectId::machine_hash();
-        let rand_id = SequentialObjectId::next_rand_id();
+    #[cfg(test)]
+    mod tests {
+        use crate::SequentialObjectId;
 
-        let bytes = SequentialObjectId::pack(ts, machine_hash, pid, rand_id);
+        #[test]
+        fn test_pack() {
+            let ts = SequentialObjectId::current_ts();
+            let pid = SequentialObjectId::pid();
+            let machine_hash = SequentialObjectId::machine_hash();
+            let rand_id = SequentialObjectId::next_rand_id();
 
-        assert_eq!(SequentialObjectId::unpack(bytes), (ts, pid, rand_id));
+            let bytes = SequentialObjectId::pack(ts, machine_hash, pid, rand_id);
+
+            assert_eq!(SequentialObjectId::unpack(bytes), (ts, pid, rand_id));
+        }
     }
 }

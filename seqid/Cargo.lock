@@ -227,7 +227,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "seq_id"
+name = "seqid"
 version = "0.1.0"
 dependencies = [
  "chrono",
