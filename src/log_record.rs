@@ -24,7 +24,7 @@ pub fn init() {
     // 创建一个小时滚动的日志记录器
 
     let file_appender = RollingFileAppender::builder()
-        .rotation(Rotation::HOURLY)
+        .rotation(Rotation::DAILY)
         .filename_prefix("Rocket")
         .filename_suffix("log")
         .build("./LOGFILES")

@@ -20,8 +20,10 @@ serde_json = { version = "1.0.116" }
 httprequest = { package = "reqwest", version = "0.12.4", features = ["json"] }
 ##增加mssql
 mssql = { path = "mssql" }
+##解码金蝶ID
+seqid = { path = "seqid" }
 ##增加事件机制
-eventful={path = "eventful"}
+eventful = { path = "eventful" }
 ##增加Rocket框架
 rocket = { version = "0.5.0", features = ["json"] }
 ##同源域名访问问题
@@ -51,9 +53,9 @@ uuid = { version = "1", features = ["v4"] }
 #rocket
 rocket_ws = "0.1.1"
 ##MAC
-mac_address="1.1.7"
+mac_address = "1.1.7"
 ##随机数
-rand='0.8'
+rand = '0.8'
 
 [profile.release]
 opt-level = 3

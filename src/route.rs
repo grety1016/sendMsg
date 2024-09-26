@@ -38,6 +38,8 @@ pub use tracing::{event, info, trace, warn, Level};
 
 //引入mssql
 use mssql::*;
+//引入seq-obj-id
+use seqid::*;
 //引入全局变量
 use crate::IS_WORKING;
 
@@ -54,14 +56,19 @@ use crate::sendmsg::*;
 
 #[derive(FromForm, Debug)]
 pub struct Upload<'r> {
-    file: Vec<TempFile<'r>>,
+    files: Vec<TempFile<'r>>,
 }
-
 #[post("/upload", format = "multipart/form-data", data = "<form>")]
 pub async fn upload(mut form: Form<Upload<'_>>) {
-    for file in form.file.iter_mut() {
+    // let result = form.files.persist_to("D:/public/trf.txt").await;
+    // println!("{:#?}",result);
+
+    for file in form.files.iter_mut() {
         println!("file's name:{:#?}", file.name());
-        println!("file's size:{:#?}", file.len());
+        println!(
+            "file's name:{:#?}",
+            file.content_type().unwrap().to_string()
+        );
     }
 }
 //websocket connection
@@ -110,10 +117,12 @@ async fn handle_message(
 //SSE 连接
 #[get("/event_conn")]
 pub async fn event_conn() -> EventStream![] {
+    let mut num = 0;
     EventStream! {
         loop{
             time::sleep(Duration::from_secs(1)).await;
-            yield Event::data("form server message");
+            num+=1;
+            yield Event::data(format!("form server message{}",num));
         }
     }
 }
@@ -220,6 +229,15 @@ pub async fn receiveMsg(data: Json<RecvMessage>) {
 
 #[get("/test")]
 pub async fn test_fn() -> Result<Json<Content>, String> {
+    println!(
+        "hash: {}, pid: {}, rand: {}, ts: {}",
+        SequentialObjectId::machine_hash(),
+        SequentialObjectId::pid(),
+        SequentialObjectId::next_rand_id(),
+        SequentialObjectId::current_ts()
+    );
+
+    println!("id: {}", SequentialObjectId::new());
     // Ok(Json(Content{recognition:"Ok".into()}))
     Err("test_ERROR".into())
 }
@@ -236,10 +254,7 @@ pub async fn index(pools: &State<Pool>) -> status::Custom<&'static str> {
         println!("server is working:{:?}!", row.try_get_i32(0).unwrap());
     }
     crate::local_thread().await;
-    status::Custom(
-        Status::PayloadTooLarge,
-        "您好,欢迎使用快先森金蝶消息接口!!!",
-    )
+    status::Custom(Status::Ok, "您好,欢迎使用快先森金蝶消息接口!!!")
 }
 
 #[post("/login", format = "json", data = "<user>")]

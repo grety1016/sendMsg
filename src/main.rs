@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 #![allow(unused_imports)]
 
+use rocket::figment::value::magic::RelativePathBuf;
 //引入rocket
 #[allow(unused)]
 use rocket::{
@@ -28,8 +29,8 @@ use rocket_cors::{AllowedOrigins, CorsOptions};
 use route_method::TokenFairing;
 
 //标准库Result
-pub use std::fmt;
 pub use std::result::Result as std_Result;
+pub use std::{fmt, process};
 #[allow(unused)]
 use std::{
     fs::File,
@@ -37,6 +38,7 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
+
 //消息接口模块
 mod sendmsg;
 use sendmsg::*;
@@ -74,8 +76,6 @@ async fn main() -> std_Result<(), rocket::Error> {
     let sendmsg = SendMSG::new();
     let pools = sendmsg.buildpools(60, 8).unwrap();
 
-  
-
     //创建多播消息通道
     #[allow(unused)]
     let (tx, mut rx) = broadcast::channel::<String>(200);
@@ -102,11 +102,11 @@ async fn main() -> std_Result<(), rocket::Error> {
         address: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), //外网地址： http://8sjqkmbn.beesnat.com/
         // address: IpAddr::V4(Ipv4Addr::new(192, 168, 0, 31)),
         port: 8000,
+        temp_dir: RelativePathBuf::from("/2、RustProgramming/sendMsg/temp"),
         //cli_colors: false,
         ..Default::default()
     };
-    
- 
+
     let limits = Limits::new()
         .limit("json", 20.mebibytes())
         .limit("file", 20.mebibytes())
@@ -130,7 +130,17 @@ async fn main() -> std_Result<(), rocket::Error> {
         .manage(tx)
         .manage(rx)
         .mount("/public", FileServer::from("D:/public"))
-        .mount("/", routes![index, Token_UnAuthorized, receiveMsg, upload,test_fn,event_conn])
+        .mount(
+            "/",
+            routes![
+                index,
+                Token_UnAuthorized,
+                receiveMsg,
+                upload,
+                test_fn,
+                event_conn
+            ],
+        )
         .mount("/user", routes![login, getSmsCode])
         .mount("/flowform", routes![getItemList])
         .launch()
