@@ -119,7 +119,7 @@ impl DDUserid {
             .unwrap()
             .text()
             .await;
-        // info!("{:?}", useridresult);
+        info!("{:?}", useridresult);
         //新增一个获取ID返回结果类型
         let mut userid = DDUseridResult::new();
         #[allow(unused)]

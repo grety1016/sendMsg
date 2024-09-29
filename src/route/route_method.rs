@@ -107,17 +107,17 @@ impl LoginResponse {
 pub struct FlowItemList {
     eventName: String,
     rn: i32,
-    fstatus: String,
-    fnumber: String,
-    fformtype: String,
-    fdisplayname: String,
-    todostatus: i32,
-    fname: String,
-    senderphone: String,
-    freceivernames: String,
-    fphone: String,
-    fprocinstid: String,
-    fcreatetime: String,
+    fStatus: String,
+    fNumber: String,
+    fFormType: String,
+    fDisplayName: String,
+    todoStatus: i32,
+    fName: String,
+    senderPhone: String,
+    fReceiverNames: String,
+    fPhone: String,
+    fProcinstID: String,
+    fCreateTime: String,
 }
 
 //创建JWT结构体

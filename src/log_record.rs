@@ -21,7 +21,7 @@ impl FormatTime for LocalTime {
 
 ///日志追踪
 pub fn init() {
-    // 创建一个小时滚动的日志记录器
+    // 创建一天滚动的日志记录器
 
     let file_appender = RollingFileAppender::builder()
         .rotation(Rotation::DAILY)

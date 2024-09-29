@@ -204,5 +204,6 @@
     "vue3snippets.enable-compile-vue-file-on-did-save-code": false,
     "aide.convertLanguagePairs": {
         "rust": "rust"
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

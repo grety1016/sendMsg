@@ -58,4 +58,9 @@ mac_address = "1.1.7"
 rand = '0.8'
 
 [profile.release]
-opt-level = 3
+opt-level = "z" #优化级别
+strip = true #移除符号信息
+lto = true #链接时优化
+codegen-units = 1 #减少并行代码生成单元
+panic = "abort" #panic 时中止
+

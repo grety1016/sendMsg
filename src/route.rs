@@ -1,5 +1,5 @@
 use httprequest::Request;
-use std::{borrow::Borrow, io, result::Result, time::Duration};
+use std::{borrow::Borrow, io, result::Result, sync::Arc, time::Duration};
 use tracing::field;
 //引入rocket
 use rocket::{
@@ -228,16 +228,7 @@ pub async fn receiveMsg(data: Json<RecvMessage>) {
 }
 
 #[get("/test")]
-pub async fn test_fn() -> Result<Json<Content>, String> {
-    println!(
-        "hash: {}, pid: {}, rand: {}, ts: {}",
-        SequentialObjectId::machine_hash(),
-        SequentialObjectId::pid(),
-        SequentialObjectId::next_rand_id(),
-        SequentialObjectId::current_ts()
-    );
-
-    println!("id: {}", SequentialObjectId::new());
+pub async fn test_fn(pools: &State<Pool>) -> Result<Json<Content>, String> {
     // Ok(Json(Content{recognition:"Ok".into()}))
     Err("test_ERROR".into())
 }

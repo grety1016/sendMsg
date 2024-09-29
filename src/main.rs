@@ -30,7 +30,7 @@ use route_method::TokenFairing;
 
 //标准库Result
 pub use std::result::Result as std_Result;
-pub use std::{fmt, process};
+pub use std::{fmt, process, thread};
 #[allow(unused)]
 use std::{
     fs::File,
@@ -38,6 +38,7 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
+use tokio::task;
 
 //消息接口模块
 mod sendmsg;
@@ -69,6 +70,9 @@ lazy_static! {
 
 #[rocket::main]
 async fn main() -> std_Result<(), rocket::Error> {
+    // 为了确保所有线程完成，主线程需要等待一段时间
+    thread::sleep(Duration::from_secs(10));
+
     //初始化trancing日志追踪
     init();
 
