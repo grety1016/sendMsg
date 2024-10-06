@@ -177,9 +177,10 @@ impl<'r> SmsMessage<'r> {
 
     pub async fn send_smsCode(&mut self) {
         //创建请求表头结构
-        let mut request_heads: Vec<String> = Vec::new();
-        request_heads.push("x-acs-dingtalk-access-token".to_owned());
-        request_heads.push(self.ddtoken.to_string());
+        let request_heads = [
+            "x-acs-dingtalk-access-token".to_owned(),
+            self.ddtoken.to_string(),
+        ];
         let msgParams = format!(r#"{{ "msgtype": "text","content": "{}"}}"#, self.smscode);
         //创建请求表体结构
         let mut request_body = HashMap::new();
@@ -223,35 +224,37 @@ pub struct ProcessApproval<'r> {
 
 impl<'r> ProcessApproval<'r> {
     //初始化用户实例,用于测试调试用
-    pub fn new(
-        exeuser: &'r str,
-        flownumber: &'r str,
-        access_token: Option<&'r str>,
-        userphone: &'r str,
-        userid: Option<&'r str>,
-        robotcode: &'r str,
-        msgkey: &'r str,
-        msgparams: &'r str,
-    ) -> ProcessApproval<'r> {
-        ProcessApproval {
-            exeuser,
-            flownumber,
-            access_token,
-            userphone,
-            userid,
-            robotcode,
-            msgkey,
-            msgparams,
-        }
-    }
+    // #[allow(dead_code)]
+    // pub fn new(
+    //     exeuser: &'r str,
+    //     flownumber: &'r str,
+    //     access_token: Option<&'r str>,
+    //     userphone: &'r str,
+    //     userid: Option<&'r str>,
+    //     robotcode: &'r str,
+    //     msgkey: &'r str,
+    //     msgparams: &'r str,
+    // ) -> ProcessApproval<'r> {
+    //     ProcessApproval {
+    //         exeuser,
+    //         flownumber,
+    //         access_token,
+    //         userphone,
+    //         userid,
+    //         robotcode,
+    //         msgkey,
+    //         msgparams,
+    //     }
+    // }
 
     //发送消息到当前用户钉钉账号
     #[allow(unused)]
     pub async fn send_msg(&mut self) {
         //创建请求表头结构
-        let mut request_heads: Vec<String> = Vec::new();
-        request_heads.push("x-acs-dingtalk-access-token".to_owned());
-        request_heads.push(self.access_token.unwrap().to_string());
+        let mut request_heads: Vec<String> = vec![
+            "x-acs-dingtalk-access-token".to_owned(),
+            self.access_token.unwrap().to_string(),
+        ];
 
         //创建请求表体结构
         let mut request_body = HashMap::new();
@@ -307,7 +310,7 @@ impl SendMSG {
         SendMSG
     }
     //返回数据库连接配置
-    pub fn conn_str(&self) -> String {
+    fn conn_str(&self) -> String {
         let host = "47.103.31.8";
         let database = "Kxs_Interface";
         let user = "kxs_dev";
@@ -324,34 +327,34 @@ impl SendMSG {
             .idle_timeout(30 * 60)
             .min_idle(min_idle)
             .max_lifetime(60 * 60 * 2)
-            .build(&self.conn_str())
+            .build(self.conn_str())
             .unwrap();
         Ok(pools)
     }
     //查询当前待办流程需要发送消息的行数
-    pub async fn get_send_num(&self, pools: &Pool) -> i32 {
-        //获取数据库连接
-        let conn = pools.get().await.unwrap();
+    // pub async fn get_send_num(&self, pools: &Pool) -> i32 {
+    //     //获取数据库连接
+    //     let conn = pools.get().await.unwrap();
 
-        let mut num: Option<i32> = Some(0);
+    //     let mut num: Option<i32> = Some(0);
 
-        let _num2 = conn
-            .scoped_trans(async {
-                num = conn
-                    .query_scalar_i32(
-                        "
-            DECLARE @num INT
-            EXEC @num= get_flow_list
-            SELECT @num",
-                    )
-                    .await
-                    .unwrap();
-                Ok(())
-            })
-            .await
-            .unwrap();
-        num.unwrap()
-    }
+    //     let _num2 = conn
+    //         .scoped_trans(async {
+    //             num = conn
+    //                 .query_scalar_i32(
+    //                     "
+    //         DECLARE @num INT
+    //         EXEC @num= get_flow_list
+    //         SELECT @num",
+    //                 )
+    //                 .await
+    //                 .unwrap();
+    //             Ok(())
+    //         })
+    //         .await
+    //         .unwrap();
+    //     num.unwrap()
+    // }
 
     //获取userid表中未有userid的用户并回写useid(is working)
     pub async fn get_userlist<'r>(
@@ -390,7 +393,7 @@ impl SendMSG {
             let userid = Some(dduserid.get_userid(gzym_access_token, user.userphone).await);
             match userid {
                 Some(v) => {
-                    if v.len() > 0 {
+                    if !v.is_empty() {
                         let _exec = conn
                             .exec(sql_bind!(
                                 "UPDATE dbo.sendMsg_users SET dduserid =  @p1,ddtoken = 'gzym_access_token',robotcode='dingrw2omtorwpetxqop' WHERE  userphone = @p2",
@@ -400,11 +403,11 @@ impl SendMSG {
                             .await
                             .unwrap();
                     } else {
-                        let v = Some(dduserid.get_userid(zb_access_token, user.userphone).await);
+                        let v = dduserid.get_userid(zb_access_token, user.userphone).await;
                         let _exec = conn
                             .exec(sql_bind!(
                                 "UPDATE dbo.sendMsg_users SET dduserid =  @p1,ddtoken = 'zb_access_token',robotcode='dingzblrl7qs6pkygqcn'  WHERE  userphone = @p2",
-                                format!("[\"{}\"]",v.unwrap()),
+                                format!("[\"{}\"]",v),
                                 user.userphone
                             ))
                             .await
@@ -419,57 +422,58 @@ impl SendMSG {
     }
 
     //执行消息发送
-    pub async fn execute_send_msgs<'r>(
-        &self,
-        pools: &Pool,
-        gzym_access_token: &'r str,
-        zb_access_token: &'r str,
-    ) {
-        //创建用户对象列表
-        let mut user_list: Vec<ProcessApproval> = Vec::new();
-        //获取连接
-        let conn = pools.get().await.unwrap();
+    // pub async fn execute_send_msgs<'r>(
+    //     &self,
+    //     pools: &Pool,
+    //     gzym_access_token: &'r str,
+    //     zb_access_token: &'r str,
+    // ) {
 
-        info!("{},{}", gzym_access_token, zb_access_token);
-        let result: Vec<Row> = conn.query_collect_row("EXEC get_sendmsg").await.unwrap();
+    //     //获取连接
+    //     let conn = pools.get().await.unwrap();
 
-        #[allow(unused)]
-        let mut access_token = "";
-        //遍历查询结果并赋值到user类待发送列表
-        for row in result.iter() {
-            if let Some("gzym_access_token") = row.try_get_str(2).unwrap() {
-                //info!("{}",gzym_access_token);
-                access_token = gzym_access_token;
-            } else {
-                //info!("{}",zb_access_token);
-                access_token = zb_access_token;
-            };
-            user_list.push(ProcessApproval::new(
-                row.try_get_str(0).unwrap().unwrap(),
-                row.try_get_str(1).unwrap().unwrap(),
-                Some(access_token),
-                row.try_get_str(3).unwrap().unwrap(),
-                row.try_get_str(4).unwrap(),
-                row.try_get_str(5).unwrap().unwrap(),
-                row.try_get_str(6).unwrap().unwrap(),
-                row.try_get_str(7).unwrap().unwrap(),
-            ));
-        }
-        //遍历user列表调用发送方法
-        for user in user_list.iter_mut() {
-            info!("{:#?}", user);
-            // user.send_msg().await;
-        }
-        //消息发送完成请回写已发送消息项为已发送
-        let write_row = conn
-            .query_scalar_i32(
-                "DECLARE @num INT UPDATE dbo.SendMessage SET rn = '1'  WHERE ISNULL(rn,0) <> 1  SET @num = @@ROWCOUNT SELECT @num",
-            )
-            .await
-            .unwrap()
-            .unwrap();
-        info!("write back nums:{}.", write_row);
-    }
+    //     info!("{},{}", gzym_access_token, zb_access_token);
+    //     let result: Vec<Row> = conn.query_collect_row("EXEC get_sendmsg").await.unwrap();
+
+    //     #[allow(unused)]
+    //     let mut access_token = "";
+    //     //遍历查询结果并赋值到user类待发送列表
+    //     for row in result.iter() {
+    //         if let Some("gzym_access_token") = row.try_get_str(2).unwrap() {
+    //             //info!("{}",gzym_access_token);
+    //             access_token = gzym_access_token;
+    //         } else {
+    //             //info!("{}",zb_access_token);
+    //             access_token = zb_access_token;
+    //         };
+    //         //创建用户对象列表
+    //     let user_list: Vec<ProcessApproval> = Vec::new();
+    //         user_list.push(ProcessApproval::new(
+    //             row.try_get_str(0).unwrap().unwrap(),
+    //             row.try_get_str(1).unwrap().unwrap(),
+    //             Some(access_token),
+    //             row.try_get_str(3).unwrap().unwrap(),
+    //             row.try_get_str(4).unwrap(),
+    //             row.try_get_str(5).unwrap().unwrap(),
+    //             row.try_get_str(6).unwrap().unwrap(),
+    //             row.try_get_str(7).unwrap().unwrap(),
+    //         ));
+    //     }
+    //     //遍历user列表调用发送方法
+    //     for user in user_list.iter_mut() {
+    //         info!("{:#?}", user);
+    //         // user.send_msg().await;
+    //     }
+    //     //消息发送完成请回写已发送消息项为已发送
+    //     let write_row = conn
+    //         .query_scalar_i32(
+    //             "DECLARE @num INT UPDATE dbo.SendMessage SET rn = '1'  WHERE ISNULL(rn,0) <> 1  SET @num = @@ROWCOUNT SELECT @num",
+    //         )
+    //         .await
+    //         .unwrap()
+    //         .unwrap();
+    //     info!("write back nums:{}.", write_row);
+    // }
 }
 
 //该方法是对消息操作方法的封装（is working）

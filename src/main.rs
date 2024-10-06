@@ -82,7 +82,7 @@ async fn main() -> std_Result<(), rocket::Error> {
 
     //创建多播消息通道
     #[allow(unused)]
-    let (tx, mut rx) = broadcast::channel::<String>(200);
+    let (tx, _) = broadcast::channel::<String>(200);
 
     // //使用rocket_cors处理跨域同源策略问题：
     // let allowed_origins = AllowedOrigins::all();
@@ -132,7 +132,6 @@ async fn main() -> std_Result<(), rocket::Error> {
         // .attach(cors)
         .manage(pools)
         .manage(tx)
-        .manage(rx)
         .mount("/public", FileServer::from("D:/public"))
         .mount(
             "/",

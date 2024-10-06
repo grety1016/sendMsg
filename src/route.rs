@@ -110,13 +110,14 @@ async fn handle_message(
     stream: &mut DuplexStream,
     msg: Message,
 ) -> Result<(), rocket_ws::result::Error> {
-    stream.send(msg.into()).await?;
+    stream.send(msg).await?;
     Ok(())
 }
 
 //SSE 连接
 #[get("/event_conn")]
 pub async fn event_conn() -> EventStream![] {
+    println!("event_conn");
     let mut num = 0;
     EventStream! {
         loop{
@@ -152,7 +153,7 @@ pub async fn getSmsCode(userphone: String, pools: &State<Pool>) -> Json<LoginRes
     }
     //如果用户存在并在60秒内未发送验证码，则发送验证码
     if code == 0 {
-        smsCode = random_number.clone();
+        smsCode = random_number;
         let sendinfo = conn.query_first_row(sql_bind!("UPDATE dbo.sendMsg_users SET smsCode = @p1,createdtime = getdate() WHERE userPhone = @p2
         SELECT  dduserid,userphone,robotcode,smscode   FROM sendMsg_users  WITH(NOLOCK)  WHERE userphone = @P2
         ",random_number,&userphone)).await.unwrap().unwrap();
@@ -183,13 +184,13 @@ pub async fn getSmsCode(userphone: String, pools: &State<Pool>) -> Json<LoginRes
         smscode.send_smsCode().await;
     }
 
-    return Json(LoginResponse {
+    Json(LoginResponse {
         userPhone: userphone,
         smsCode,
         token: "".to_owned(),
         code,
         errMsg,
-    });
+    })
 }
 
 #[get("/shutdown")]
@@ -228,7 +229,7 @@ pub async fn receiveMsg(data: Json<RecvMessage>) {
 }
 
 #[get("/test")]
-pub async fn test_fn(pools: &State<Pool>) -> Result<Json<Content>, String> {
+pub async fn test_fn(_pools: &State<Pool>) -> Result<Json<Content>, String> {
     // Ok(Json(Content{recognition:"Ok".into()}))
     Err("test_ERROR".into())
 }
@@ -255,25 +256,24 @@ pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<Login
     // assert_eq!(Claims::verify_token(userp.token.clone()).await,true);
     if !userp.token.is_empty() && Claims::verify_token(userp.token.clone()).await {
         // println!("token验证成功：{:#?}", &userp.token);
-        return Json(LoginResponse::new(
+        Json(LoginResponse::new(
             userp.token.clone(),
             userp,
             0,
             "".to_string(),
+        ))
+    } else if userp.userPhone.is_empty() || userp.smsCode.is_empty() {
+        // println!("用户名或密码为空：{:#?}", &userp.token);
+        return Json(LoginResponse::new(
+            "Bearer".to_string(),
+            userp.clone(),
+            -1,
+            "手机号或验证码不能为空!".to_string(),
         ));
     } else {
-        if userp.userPhone.is_empty() || userp.smsCode.is_empty() {
-            // println!("用户名或密码为空：{:#?}", &userp.token);
-            return Json(LoginResponse::new(
-                "Bearer".to_string(),
-                userp.clone(),
-                -1,
-                "手机号或验证码不能为空!".to_string(),
-            ));
-        } else {
-            let conn = pools.get().await.unwrap();
-            //查询当前用户列表中是否存在该手机及验证码，并且在3分钟时效内
-            let userPhone = conn
+        let conn = pools.get().await.unwrap();
+        //查询当前用户列表中是否存在该手机及验证码，并且在3分钟时效内
+        let userPhone = conn
                 .query_scalar_string(sql_bind!(
                     "SELECT  userPhone  FROM dbo.sendMsg_users WHERE userphone = @P1 AND smscode = @P2 AND   DATEDIFF(MINUTE, createdtime, GETDATE()) <= 3",
                     &userp.userPhone,
@@ -281,21 +281,21 @@ pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<Login
                 ))
                 .await
                 .unwrap();
-            let mut token = String::from("");
-            // #[allow(unused)]
-            let mut code: i32 = 0;
-            let mut errmsg = String::from("");
+        let mut token = String::from("");
+        // #[allow(unused)]
+        let mut code: i32 = 0;
+        let mut errmsg = String::from("");
 
-            if let Some(value) = userPhone {
-                token = Claims::get_token(value.to_owned()).await;
-            } else {
-                code = -1;
-                errmsg = "手机号或验证码错误!".to_owned();
-            }
-            // if code == 0 {println!("创建token成功：{:#?}", &userp.token);}else{println!("用户名或密码错误!")}
-            return Json(LoginResponse::new(token, userp.clone(), code, errmsg));
+        if let Some(value) = userPhone {
+            token = Claims::get_token(value.to_owned()).await;
+        } else {
+            code = -1;
+            errmsg = "手机号或验证码错误!".to_owned();
         }
-    } // 加入任务
+        // if code == 0 {println!("创建token成功：{:#?}", &userp.token);}else{println!("用户名或密码错误!")}
+        return Json(LoginResponse::new(token, userp.clone(), code, errmsg));
+    }
+    // 加入任务
 }
 
 #[get("/getitemlist?<userphone>&<itemstatus>")]
@@ -327,10 +327,10 @@ pub async fn Token_UnAuthorized(user: Json<LoginUser>) -> Json<LoginResponse> {
     let Json(userp) = user;
 
     // println!("unauthorized");
-    return Json(LoginResponse::new(
+    Json(LoginResponse::new(
         "Bearer".to_string(),
         userp,
         -1,
         "Token_UnAuthorized".to_string(),
-    ));
+    ))
 }

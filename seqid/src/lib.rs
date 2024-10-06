@@ -19,7 +19,7 @@ impl SequentialObjectId {
         }
     }
 
-    pub fn pack(ts: u32, machine_hash: u32, pid: u16, rand_id: u32) -> [u8; 9] {
+    pub fn pack(ts: u32, _machine_hash: u32, pid: u16, rand_id: u32) -> [u8; 9] {
         [
             (ts >> 24) as u8,
             (ts >> 16) as u8,
@@ -83,17 +83,17 @@ impl Display for SequentialObjectId {
     }
 }
 
-fn main() {
-    println!(
-        "hash: {}, pid: {}, rand: {}, ts: {}",
-        SequentialObjectId::machine_hash(),
-        SequentialObjectId::pid(),
-        SequentialObjectId::next_rand_id(),
-        SequentialObjectId::current_ts()
-    );
+// fn main() {
+//     println!(
+//         "hash: {}, pid: {}, rand: {}, ts: {}",
+//         SequentialObjectId::machine_hash(),
+//         SequentialObjectId::pid(),
+//         SequentialObjectId::next_rand_id(),
+//         SequentialObjectId::current_ts()
+//     );
 
-    println!("id: {}", SequentialObjectId::new());
-}
+//     println!("id: {}", SequentialObjectId::new());
+// }
 
 #[cfg(test)]
 mod tests {

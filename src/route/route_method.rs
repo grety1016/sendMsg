@@ -41,30 +41,27 @@ impl Fairing for TokenFairing {
         // println!("{:#?}\n{:#?}\n{:#?}\n{:#?}", req.uri(), req.method(), req.headers().to_owned(),req.to_string());
         /*************************************************************************************
         如下代码用于验证token，并且是POST方法才生效*/
-        if req.uri().to_string() == "/user/login" && req.method() == Method::Post {
+        if *req.uri() == "/user/login" && req.method() == Method::Post {
             let token = req.headers().get_one("Authorization");
             let mut verifyResult: bool = false;
             if let Some(value) = token {
                 verifyResult = Claims::verify_token(value.to_string()).await;
             }
 
-            if verifyResult == true {
+            if verifyResult {
                 // println!("验证成功");
                 return;
+            } else if *req.uri() == "/user/login" {
+                return;
             } else {
-                if req.uri().to_string() == "/user/login" {
-                    return;
-                } else {
-                    let url = Origin::parse("/Token_UnAuthorized").unwrap();
-                    req.set_uri(url);
-                    return;
-                }
+                let url = Origin::parse("/Token_UnAuthorized").unwrap();
+                req.set_uri(url);
+                return;
             }
         }
-        /*************************************************************************************
-        如上代码用于验证token，并且是POST方法才生效*/
     }
-
+    /*************************************************************************************
+    如上代码用于验证token，并且是POST方法才生效*/
     // async fn on_response<'r>(&self, request: &'r Request<'_>, response: &mut Response<'r>) {
     //     println!("{:#?},{:#?}", response.status(), response.body());
     // }
@@ -170,11 +167,9 @@ impl Claims {
             &validate,
         );
         //println!("{:#?}", deToken);
-        match deToken {
-            Ok(_) => {
-                return true;
-            }
-            Err(_) => return false,
+        match deToken.is_ok() {
+            true => true,
+            false => false,
         }
     }
 }
