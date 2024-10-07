@@ -25,7 +25,7 @@ use rocket::{
 };
 
 //处理同源的问题
-use rocket_cors::{AllowedOrigins, CorsOptions};
+// use rocket_cors::{AllowedOrigins, CorsOptions};
 use route_method::TokenFairing;
 
 //标准库Result
@@ -57,14 +57,14 @@ pub use log_record::*;
 use httprequest::Client;
 
 //MAC地址
-use mac_address::get_mac_address;
+// use mac_address::get_mac_address;
 
 //使用静态库
-use lazy_static::lazy_static;
+// use lazy_static::lazy_static;
 
-lazy_static! {
-    static ref IS_WORKING: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
-}
+// lazy_static! {
+//     static ref IS_WORKING: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+// }
 
 //配置静态文件
 

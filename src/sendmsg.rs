@@ -1,5 +1,6 @@
 #[allow(unused)]
-use tokio::time;
+use rocket::tokio::time;
+use serde_json::json;
 //reqwestHTTP请求
 use httprequest::Client;
 #[allow(unused)]
@@ -104,6 +105,7 @@ impl DDUserid {
 
     //调用通过手机获取userid(isworking)
     pub async fn get_userid<'r>(&self, access_token: &'r str, mobile: &'r str) -> String {
+        // let request = json!({"access_token": access_token, "mobile": mobile});
         let mut request: HashMap<String, String> = HashMap::new();
         request.insert("access_token".to_owned(), access_token.to_owned());
         //let mut mobile = HashMap::new();

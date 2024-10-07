@@ -28,7 +28,7 @@ use rocket::{
 //引入rocket_ws
 use rocket_ws::{self, stream::DuplexStream, Message, WebSocket};
 //引入tokio
-use tokio::{self, select, task, time};
+use rocket::tokio::{self, select, task, time};
 //引入serde_json
 use serde::{de::value::CowStrDeserializer, Deserialize, Serialize};
 use serde_json::json; //用于结构体上方的系列化宏
@@ -41,9 +41,9 @@ use mssql::*;
 //引入seq-obj-id
 use seqid::*;
 //引入全局变量
-use crate::IS_WORKING;
+// use crate::IS_WORKING;
 
-use either::*;
+// use either::*;
 
 pub mod route_method;
 use route_method::*;
@@ -194,14 +194,15 @@ pub async fn getSmsCode(userphone: String, pools: &State<Pool>) -> Json<LoginRes
 }
 
 #[get("/shutdown")]
-pub fn shutdown(shutdown: Shutdown) -> &'static str {
-    let value = IS_WORKING.lock().unwrap();
-    if *value {
-        "任务正在执行中,请稍后重试！"
-    } else {
-        shutdown.notify();
-        "优雅关机!!！"
-    }
+pub fn shutdown(_shutdown: Shutdown) -> &'static str {
+    // let value = IS_WORKING.lock().unwrap();
+    // if *value {
+    //     "任务正在执行中,请稍后重试！"
+    // } else {
+    //     shutdown.notify();
+    //     "优雅关机!!！"
+    // }
+    "优雅关机!!！"
 }
 
 //接收文本消息结构中的文字

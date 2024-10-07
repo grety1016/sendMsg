@@ -28,7 +28,7 @@ impl Fairing for TokenFairing {
             kind: Kind::Request | Kind::Response,
         }
     }
-    //更新测试
+    
     async fn on_request(&self, req: &mut Request<'_>, _data: &mut Data<'_>) {
         // println!("{}", req.uri().path());
         // println!("{}", req.uri());
