@@ -145,7 +145,7 @@ async fn main() -> std_Result<(), rocket::Error> {
             ],
         )
         .mount("/user", routes![login, getSmsCode])
-        .mount("/flowform", routes![getItemList])
+        .mount("/flowform", routes![getItemList,getFlowDetail])
         .launch()
         .await?;
 

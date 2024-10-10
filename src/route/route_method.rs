@@ -28,7 +28,7 @@ impl Fairing for TokenFairing {
             kind: Kind::Request | Kind::Response,
         }
     }
-    
+
     async fn on_request(&self, req: &mut Request<'_>, _data: &mut Data<'_>) {
         // println!("{}", req.uri().path());
         // println!("{}", req.uri());
@@ -117,6 +117,22 @@ pub struct FlowItemList {
     fCreateTime: String,
 }
 
+//创建FlowForm明细信息结构体
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlowDetail {
+    fBillNo: String,         // 流程编码
+    fOrgID: String,          // 申请组织
+    fRequestDeptID: String,  // 申请部门
+    fProposerID: String,     // 申请人
+    fExpenseOrgID: String,   // 费用组织
+    fExpenseDeptID: String,  // 费用部门
+    fCurrency: String,       // 币别
+    fReqReimbAmountSum: f64, // 申请报销金额汇总
+    fExpAmountSum: f64,      // 核定报销金额
+    fCausa: String,          // 事由
+    years: String,
+    status: String, // 年份
+}
 //创建JWT结构体
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {

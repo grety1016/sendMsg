@@ -306,8 +306,8 @@ pub async fn getItemList(
     pool: &State<Pool>,
 ) -> Json<Vec<FlowItemList>> {
     let conn = pool.get().await.unwrap();
-    println!("userphone:{},itemstatus:{}", &userphone, &itemstatus);
-    let flowitemlist: Vec<FlowItemList> = conn
+    //println!("userphone:{},itemstatus:{}", &userphone, &itemstatus);
+    let flowitemlist = conn
         .query_collect(sql_bind!(
             "SELECT * FROM getTodoList(@p1,@p2)",
             &itemstatus,
@@ -317,12 +317,18 @@ pub async fn getItemList(
         .unwrap();
     Json(flowitemlist)
 }
+#[get("/getflowdetail?<fbillno>")]
+pub async fn getFlowDetail(fbillno: String, pool: &State<Pool>) -> Json<Vec<FlowDetail>> {
+    let conn = pool.get().await.unwrap();
 
-// #[get("/unauthorized")]
-// pub async fn unauthorized() -> &'static str {
-//     println!("unauthorized");
-//     return "unauthorized"
-// }
+    let flowdetail = conn
+        .query_collect(sql_bind!("SELECT * FROM getFlowDetail(@p1)", &fbillno))
+        .await
+        .unwrap();
+
+    Json(flowdetail)
+}
+
 #[post("/Token_UnAuthorized", format = "json", data = "<user>")]
 pub async fn Token_UnAuthorized(user: Json<LoginUser>) -> Json<LoginResponse> {
     let Json(userp) = user;
