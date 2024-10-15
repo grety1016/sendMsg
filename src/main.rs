@@ -1,14 +1,14 @@
 #![allow(non_snake_case)]
 #![allow(unused_imports)]
 
-use rocket::figment::value::magic::RelativePathBuf;
 //引入rocket
 #[allow(unused)]
 use rocket::{
-    self, build,
+    self, build, catchers,
     config::Config,
     data::{Limits, ToByteUnit},
     fairing::AdHoc,
+    figment::value::magic::RelativePathBuf,
     figment::Figment,
     fs::{relative, FileServer},
     futures::{SinkExt, StreamExt},
@@ -69,9 +69,7 @@ use httprequest::Client;
 //配置静态文件
 
 #[rocket::main]
-async fn main() -> std_Result<(), rocket::Error> {
-    // 为了确保所有线程完成，主线程需要等待一段时间
-    thread::sleep(Duration::from_secs(10));
+async fn main() -> std_Result<(), rocket::Error> { 
 
     //初始化trancing日志追踪
     init();
@@ -132,20 +130,11 @@ async fn main() -> std_Result<(), rocket::Error> {
         // .attach(cors)
         .manage(pools)
         .manage(tx)
+        .register("/", catchers![default_catcher])
         .mount("/public", FileServer::from("D:/public"))
-        .mount(
-            "/",
-            routes![
-                index,
-                Token_UnAuthorized,
-                receiveMsg,
-                upload,
-                test_fn,
-                event_conn
-            ],
-        )
-        .mount("/user", routes![login, getSmsCode])
-        .mount("/flowform", routes![getItemList,getFlowDetail])
+        .mount("/", routes![index, receiveMsg, upload, test_fn, event_conn])
+        .mount("/user", routes![login_post, getSmsCode, login_get])
+        .mount("/flowform", routes![getItemList, getFlowDetail])
         .launch()
         .await?;
 

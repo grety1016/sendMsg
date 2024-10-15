@@ -58,7 +58,7 @@ impl<'r> DDToken<'r> {
             .get(self.url)
             .query(&get_token_param)
             .send()
-            .await
+            .await         
             .unwrap()
             .text()
             .await
@@ -144,37 +144,21 @@ impl DDUserid {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SmsMessage<'r> {
+pub struct SmsMessage {
     ddtoken: String,
-    dduserid: &'r str,
-    userphone: &'r str,
-    robotcode: &'r str,
+    dduserid: String,
+    userphone: String,
+    robotcode: String,
     smscode: i32,
 }
 
-impl<'r> SmsMessage<'r> {
-    pub fn new(
-        ddtoken: String,
-        dduserid: &'r str,
-        userphone: &'r str,
-        robotcode: &'r str,
-        smscode: i32,
-    ) -> SmsMessage<'r> {
-        SmsMessage {
-            ddtoken,
-            dduserid,
-            userphone,
-            robotcode,
-            smscode,
-        }
-    }
-
+impl SmsMessage {
     pub fn set_ddtoken(&mut self, ddtoken: String) {
         self.ddtoken = ddtoken;
     }
 
-    pub fn get_rotobotcode(&self) -> &str {
-        self.robotcode
+    pub fn get_rotobotcode(&self) -> String {
+        self.robotcode.to_owned()
     }
 
     pub async fn send_smsCode(&mut self) {

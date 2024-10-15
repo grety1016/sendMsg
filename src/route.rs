@@ -1,21 +1,20 @@
-use httprequest::Request;
+use chrono::format;
+use core::panic;
 use std::{borrow::Borrow, io, result::Result, sync::Arc, time::Duration};
 use tracing::field;
 //引入rocket
 use rocket::{
-    self, build,
+    self, build, catch,
     config::Config,
-    data::{self, FromData},
-    data::{Data, ToByteUnit},
+    data::{self, Data, FromData, ToByteUnit},
     fairing::AdHoc,
     form::{self, Form},
-    fs::relative,
-    fs::TempFile,
+    fs::{relative, TempFile},
     futures::{SinkExt, StreamExt},
     get,
-    http::hyper::request,
     http::Status,
-    launch, post,
+    launch, outcome, post,
+    request::{FromRequest, Outcome},
     response::{
         status,
         stream::{Event, EventStream},
@@ -23,7 +22,7 @@ use rocket::{
     routes,
     serde::json::Json,
     tokio::sync::broadcast::{Receiver, Sender},
-    FromForm, Request as rocketRequest, Response, Shutdown, State,
+    FromForm, Request, Response, Shutdown, State,
 };
 //引入rocket_ws
 use rocket_ws::{self, stream::DuplexStream, Message, WebSocket};
@@ -57,6 +56,10 @@ use crate::sendmsg::*;
 #[derive(FromForm, Debug)]
 pub struct Upload<'r> {
     files: Vec<TempFile<'r>>,
+}
+pub struct Files<'r> {
+    pub file_name: String,
+    pub file_list: Vec<TempFile<'r>>
 }
 #[post("/upload", format = "multipart/form-data", data = "<form>")]
 pub async fn upload(mut form: Form<Upload<'_>>) {
@@ -130,63 +133,52 @@ pub async fn event_conn() -> EventStream![] {
 
 #[get("/getsmscode?<userphone>")]
 pub async fn getSmsCode(userphone: String, pools: &State<Pool>) -> Json<LoginResponse> {
-    let mut random_number: i32 = 0;
-    let mut code = 0;
+    let mut code = StatusCode::Success as i32;
     let mut errMsg = "".to_owned();
     let mut smsCode = 0;
-
     let conn = pools.get().await.unwrap();
     //查询当前手机是否在消息用户列表中存在有效验证码
     let result = conn.query_scalar_i32(sql_bind!("SELECT  DATEDIFF(second, createdtime, GETDATE())  FROM dbo.sendMsg_users WHERE userPhone = @p1", &userphone)).await.unwrap();
     //存在后判断最近一次发送时长是否在60秒内
     if let Some(val) = result {
         if val <= 60 {
-            code = -2;
+            code = StatusCode::TooManyRequests as i32;
             errMsg = "操作过于频繁，请复制最近一次验证码或一分钟后重试".to_owned();
         } else {
             let mut rng = rand::thread_rng();
-            random_number = rng.gen_range(1000..10000);
+            smsCode = rng.gen_range(1000..10000);
         }
     } else {
         errMsg = "该手机号未注册!".to_owned();
-        code = -1;
+        code = StatusCode::NotFound as i32;
     }
     //如果用户存在并在60秒内未发送验证码，则发送验证码
-    if code == 0 {
-        smsCode = random_number;
-        let sendinfo = conn.query_first_row(sql_bind!("UPDATE dbo.sendMsg_users SET smsCode = @p1,createdtime = getdate() WHERE userPhone = @p2
-        SELECT  dduserid,userphone,robotcode,smscode   FROM sendMsg_users  WITH(NOLOCK)  WHERE userphone = @P2
-        ",random_number,&userphone)).await.unwrap().unwrap();
+    if code == StatusCode::Success as i32 {
+        let mut smscode :Vec<SmsMessage> = conn.query_collect(sql_bind!("UPDATE dbo.sendMsg_users SET smsCode = @p1,createdtime = getdate() WHERE userPhone = @p2
+        SELECT  '' as ddtoken,dduserid,userphone,robotcode,smscode   FROM sendMsg_users  WITH(NOLOCK)  WHERE userphone = @P2
+        ",smsCode,&userphone)).await.unwrap();
 
-        let mut smscode = SmsMessage::new(
-            "".to_owned(),
-            sendinfo.try_get_str(0).unwrap().unwrap(),
-            sendinfo.try_get_str(1).unwrap().unwrap(),
-            sendinfo.try_get_str(2).unwrap().unwrap(),
-            sendinfo.try_get_i32(3).unwrap().unwrap(),
-        );
-
-        if smscode.get_rotobotcode() == "dingrw2omtorwpetxqop" {
+        if smscode[0].get_rotobotcode() == "dingrw2omtorwpetxqop" {
             let gzym_ddtoken = DDToken::new(
                 "https://oapi.dingtalk.com/gettoken",
                 "dingrw2omtorwpetxqop",
                 "Bcrn5u6p5pQg7RvLDuCP71VjIF4ZxuEBEO6kMiwZMKXXZ5AxQl_I_9iJD0u4EQ-N",
             );
-            smscode.set_ddtoken(gzym_ddtoken.get_token().await);
+            smscode[0].set_ddtoken(gzym_ddtoken.get_token().await);
         } else {
             let zb_ddtoken = DDToken::new(
                 "https://oapi.dingtalk.com/gettoken",
                 "dingzblrl7qs6pkygqcn",
                 "26GGYRR_UD1VpHxDBYVixYvxbPGDBsY5lUB8DcRqpSgO4zZax427woZTmmODX4oU",
             );
-            smscode.set_ddtoken(zb_ddtoken.get_token().await);
+            smscode[0].set_ddtoken(zb_ddtoken.get_token().await);
         }
-        smscode.send_smsCode().await;
+        //smscode[0].send_smsCode().await;
     }
 
     Json(LoginResponse {
         userPhone: userphone,
-        smsCode,
+        smsCode: 0,
         token: "".to_owned(),
         code,
         errMsg,
@@ -203,25 +195,6 @@ pub fn shutdown(_shutdown: Shutdown) -> &'static str {
     //     "优雅关机!!！"
     // }
     "优雅关机!!！"
-}
-
-//接收文本消息结构中的文字
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Text {
-    pub content: String,
-}
-//接收消息文本结构
-#[derive(Debug, Deserialize, Serialize)]
-pub struct RecvMessage {
-    pub senderStaffId: String,
-    pub text: Option<Text>,
-    pub content: Option<Content>,
-    pub msgtype: String,
-}
-//接收语音消息结构中的文字
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Content {
-    pub recognition: String,
 }
 
 #[post("/receiveMsg", format = "json", data = "<data>")]
@@ -247,28 +220,66 @@ pub async fn index(pools: &State<Pool>) -> status::Custom<&'static str> {
         println!("server is working:{:?}!", row.try_get_i32(0).unwrap());
     }
     crate::local_thread().await;
-    status::Custom(Status::Ok, "您好,欢迎使用快先森金蝶消息接口!!!")
+    status::Custom(
+        Status::Ok,
+        "您好,欢迎使用快先森金蝶消息接口,请前往  http://8sjqkmbn.beesnat.com  访问！",
+    )
+}
+
+//当用户不是从前端页面发起请求时，则返回登录页面
+#[get("/login")]
+pub async fn login_get() -> ApiResponse<CstResponse> {
+    let errmsg =
+        "您好,欢迎使用快先森金蝶消息接口,请先前往  http://8sjqkmbn.beesnat.com  登录!".to_owned();
+    let cstcode = CstResponse::new(StatusCode::Unauthorized as i32, errmsg);
+
+    ApiResponse::Unauthorized(Json(cstcode))
+}
+
+//请求守卫，用于验证表头与表体token是否匹配
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for LoginResponse {
+    type Error = ();
+
+    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let token = req
+            .headers()
+            .get_one("Authorization")
+            .unwrap_or("")
+            .to_owned();
+        let userPhone = Claims::get_phone(token.to_string()).await;
+
+        Outcome::Success(LoginResponse::new(
+            token.clone(),
+            LoginUser {
+                userPhone,
+                smsCode: "".to_owned(),
+                token,
+            },
+            StatusCode::Success as i32,
+            "".to_string(),
+        ))
+    }
 }
 
 #[post("/login", format = "json", data = "<user>")]
-pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<LoginResponse> {
+pub async fn login_post<'r>(
+    loginrespon: LoginResponse,
+    user: Json<LoginUser>,
+    pools: &State<Pool>,
+) -> Json<LoginResponse> {
     let Json(userp) = user;
     // assert_eq!(userp.token.is_empty(),false);
     // assert_eq!(Claims::verify_token(userp.token.clone()).await,true);
-    if !userp.token.is_empty() && Claims::verify_token(userp.token.clone()).await {
+    if Claims::verify_token(loginrespon.token.clone()).await {
         // println!("token验证成功：{:#?}", &userp.token);
-        Json(LoginResponse::new(
-            userp.token.clone(),
-            userp,
-            0,
-            "".to_string(),
-        ))
+        Json(loginrespon)
     } else if userp.userPhone.is_empty() || userp.smsCode.is_empty() {
         // println!("用户名或密码为空：{:#?}", &userp.token);
         return Json(LoginResponse::new(
             "Bearer".to_string(),
             userp.clone(),
-            -1,
+            StatusCode::RequestEntityNull as i32,
             "手机号或验证码不能为空!".to_string(),
         ));
     } else {
@@ -284,27 +295,35 @@ pub async fn login<'r>(user: Json<LoginUser>, pools: &State<Pool>) -> Json<Login
                 .unwrap();
         let mut token = String::from("");
         // #[allow(unused)]
-        let mut code: i32 = 0;
+        let mut code: i32 = StatusCode::Success as i32;
         let mut errmsg = String::from("");
 
         if let Some(value) = userPhone {
             token = Claims::get_token(value.to_owned()).await;
         } else {
-            code = -1;
+            code = StatusCode::RequestEntityNotMatch as i32;
             errmsg = "手机号或验证码错误!".to_owned();
         }
+
         // if code == 0 {println!("创建token成功：{:#?}", &userp.token);}else{println!("用户名或密码错误!")}
-        return Json(LoginResponse::new(token, userp.clone(), code, errmsg));
+        Json(LoginResponse::new(token, userp.clone(), code, errmsg))
     }
     // 加入任务
 }
 
 #[get("/getitemlist?<userphone>&<itemstatus>")]
 pub async fn getItemList(
-    userphone: String,
+    loginrespon: LoginResponse,
+    mut userphone: String,
     itemstatus: String,
     pool: &State<Pool>,
 ) -> Json<Vec<FlowItemList>> {
+    //判断token解析出来的手机号是否与请求参数中的手机号一致，如果不一致，则使用请求参数中的手机号
+    let tokenPhone = Claims::get_phone(loginrespon.token.clone()).await;
+    if tokenPhone != userphone {
+        userphone = tokenPhone;
+    }
+
     let conn = pool.get().await.unwrap();
     //println!("userphone:{},itemstatus:{}", &userphone, &itemstatus);
     let flowitemlist = conn
@@ -317,27 +336,74 @@ pub async fn getItemList(
         .unwrap();
     Json(flowitemlist)
 }
-#[get("/getflowdetail?<fbillno>")]
-pub async fn getFlowDetail(fbillno: String, pool: &State<Pool>) -> Json<Vec<FlowDetail>> {
+
+#[get("/getflowdetail?<fbillno>&<fformtype>")]
+pub async fn getFlowDetail(
+    loginrespon: LoginResponse,
+    fbillno: String,
+    fformtype: String,
+    pool: &State<Pool>,
+) -> ApiResponse<Vec<FlowDetail>> {
     let conn = pool.get().await.unwrap();
 
-    let flowdetail = conn
-        .query_collect(sql_bind!("SELECT * FROM getFlowDetail(@p1)", &fbillno))
+    let flowdetail: Vec<FlowDetail> = conn
+        .query_collect(sql_bind!(
+            "SELECT * FROM getFlowDetail(@p1,@p2,@p3)",
+            &fbillno,
+            &loginrespon.userPhone,
+            &fformtype
+        ))
         .await
         .unwrap();
-
-    Json(flowdetail)
+    if flowdetail[0].available == 1 {
+        ApiResponse::Success(Json(flowdetail))
+    } else {
+        ApiResponse::Forbidden(Json(flowdetail))
+    }
 }
 
-#[post("/Token_UnAuthorized", format = "json", data = "<user>")]
-pub async fn Token_UnAuthorized(user: Json<LoginUser>) -> Json<LoginResponse> {
-    let Json(userp) = user;
+#[catch(default)]
+pub async fn default_catcher(status: Status, req: &Request<'_>) -> ApiResponse<CstResponse> {
+    // println!("not_found:{:#?}", req);
+    let mut url = req.headers().get_one("originURL").unwrap().to_string();
 
-    // println!("unauthorized");
-    Json(LoginResponse::new(
-        "Bearer".to_string(),
-        userp,
-        -1,
-        "Token_UnAuthorized".to_string(),
-    ))
+    #[allow(unused_assignments)]
+    let mut apires = ApiResponse::NotFound(Json(CstResponse::new(
+        StatusCode::NotFound as i32,
+        "".to_string(),
+    )));
+
+    if Status::NotFound == status {
+        url = format!(
+            "您访问的地址 {} 不存在, 请检查地址(方法Get/Post)后重试!",
+            url
+        );
+        apires = ApiResponse::NotFound(Json(CstResponse::new(StatusCode::NotFound as i32, url)));
+    } else if Status::UnprocessableEntity == status {
+        url = format!("您访问的地址  {} 请求参数不正确,请检查参数后重试!", url);
+        apires = ApiResponse::UnprocessableEntity(Json(CstResponse::new(
+            StatusCode::UnprocessableEntity as i32,
+            url,
+        )));
+    } else if Status::BadRequest == status {
+        url = format!(
+            "您访问的地址  {} 缺少请求主体或不正确,请检查参数后重试!",
+            url
+        );
+        apires = ApiResponse::UnprocessableEntity(Json(CstResponse::new(
+            StatusCode::BadRequest as i32,
+            url,
+        )));
+    } else if Status::Unauthorized == status {
+        url = format!("您访问的地址  {} 未授权,请检查权限后重试!", url);
+        apires =
+            ApiResponse::Unauthorized(Json(CstResponse::new(StatusCode::Unauthorized as i32, url)));
+    } else {
+        url = format!("您访问的地址 {} 发生未知错误,请联系管理员!", url);
+        apires = ApiResponse::InternalServerError(Json(CstResponse::new(
+            StatusCode::InternalServerError as i32,
+            url,
+        )));
+    }
+    apires
 }
