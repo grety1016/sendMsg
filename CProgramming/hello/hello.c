@@ -24,9 +24,7 @@ int main()
     c_ptr[2] = 'g';
     c_ptr[3] = '\0';
     printf("Address: %p\n", (void *)c_ptr);
-
-    // 使用完动态分配的内存后，手动释放
-    free(c_ptr);
+ 
 
     return 0;
 }

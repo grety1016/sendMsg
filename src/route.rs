@@ -1,6 +1,6 @@
 use chrono::format;
 use core::panic;
-use std::{borrow::Borrow, io, result::Result, sync::Arc, time::Duration};
+use std::{borrow::Borrow, io, path::Path, result::Result, sync::Arc, time::Duration};
 use tracing::field;
 //引入rocket
 use rocket::{
@@ -59,7 +59,7 @@ pub struct Upload<'r> {
 }
 pub struct Files<'r> {
     pub file_name: String,
-    pub file_list: Vec<TempFile<'r>>
+    pub file_list: Vec<TempFile<'r>>,
 }
 #[post("/upload", format = "multipart/form-data", data = "<form>")]
 pub async fn upload(mut form: Form<Upload<'_>>) {
@@ -262,7 +262,7 @@ impl<'r> FromRequest<'r> for LoginResponse {
     }
 }
 
-#[post("/login", format = "json", data = "<user>")]
+#[post("/login", format = "application/json", data = "<user>")]
 pub async fn login_post<'r>(
     loginrespon: LoginResponse,
     user: Json<LoginUser>,
@@ -318,7 +318,7 @@ pub async fn getItemList(
     itemstatus: String,
     pool: &State<Pool>,
 ) -> Json<Vec<FlowItemList>> {
-    //判断token解析出来的手机号是否与请求参数中的手机号一致，如果不一致，则使用请求参数中的手机号
+    //判断token解析出来的手机号是否与请求参数中的手机号一致，如果不一致，则使用token的手机号
     let tokenPhone = Claims::get_phone(loginrespon.token.clone()).await;
     if tokenPhone != userphone {
         userphone = tokenPhone;
@@ -337,10 +337,10 @@ pub async fn getItemList(
     Json(flowitemlist)
 }
 
-#[get("/getflowdetail?<fbillno>&<fformtype>")]
+#[get("/getflowdetail?<fprocinstid>&<fformtype>")]
 pub async fn getFlowDetail(
     loginrespon: LoginResponse,
-    fbillno: String,
+    fprocinstid: String,
     fformtype: String,
     pool: &State<Pool>,
 ) -> ApiResponse<Vec<FlowDetail>> {
@@ -349,7 +349,7 @@ pub async fn getFlowDetail(
     let flowdetail: Vec<FlowDetail> = conn
         .query_collect(sql_bind!(
             "SELECT * FROM getFlowDetail(@p1,@p2,@p3)",
-            &fbillno,
+            &fprocinstid,
             &loginrespon.userPhone,
             &fformtype
         ))
@@ -360,6 +360,76 @@ pub async fn getFlowDetail(
     } else {
         ApiResponse::Forbidden(Json(flowdetail))
     }
+}
+
+#[get("/getflowdetailrows?<fprocinstid>")]
+pub async fn getFlowDetailRows(
+    fprocinstid: String,
+    pool: &State<Pool>,
+) -> Json<Vec<FlowDetailRow>> {
+    let conn = pool.get().await.unwrap();
+    //查询明细行的数据数组
+    let mut flowdetailrows: Vec<FlowDetailRow> = conn
+        .query_collect(sql_bind!(
+            "SELECT * FROM getFlowDetailRows(@p1)",
+            &fprocinstid
+        ))
+        .await
+        .unwrap();
+    //遍历明细行数据
+    for detailrow in flowdetailrows.iter_mut() {
+        //将附件数据转换成json数组
+        detailrow.attachments =
+            serde_json::from_str(&detailrow.fSnnaAttachments).unwrap_or(Some(vec![]));
+        //清空附件字符串
+        detailrow.fSnnaAttachments = "".to_string();
+        //遍历Optiono数据
+        for Attachment in detailrow.attachments.iter_mut() {
+            for item in Attachment.iter_mut() {
+                let path = Path::new(item.FileName.as_str())
+                    .extension()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+                item.FileType = Some(path.to_string());
+                let filepath = match path.as_str() {
+                    "jpg" | "png" | "jpeg" | "gif" => {
+                        format!(
+                            "http://sendmsg.free.idcfengye.com/files/Image/{}/{}",
+                            detailrow.years, item.ServerFileName
+                        )
+                    }
+                    "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" => {
+                        format!(
+                            "http://sendmsg.free.idcfengye.com/files/Doc/{}/{}",
+                            detailrow.years, item.ServerFileName
+                        )
+                    }
+                    _ => {
+                        format!(
+                            "http://sendmsg.free.idcfengye.com/files/Other/{}/{}",
+                            detailrow.years, item.ServerFileName
+                        )
+                    } //"txt" | "rar" | "zip" | "csv"
+                };
+                item.ServerFileName = format!("{}.{}", filepath, path);
+                if item.FileBytesLength / 1024_f64 >= 1024_f64 {
+                    item.FileSize = Some(format!(
+                        "{:.2}MB",
+                        item.FileBytesLength / 1024_f64 / 1024_f64
+                    ));
+                    item.FileBytesLength = 0_f64;
+                    item.FileLength = 0_f64;
+                } else {
+                    item.FileSize = Some(format!("{:.2}KB", item.FileBytesLength / 1024_f64));
+                    item.FileBytesLength = 0_f64;
+                    item.FileLength = 0_f64;
+                }
+            }
+        }
+    }
+    Json(flowdetailrows)
 }
 
 #[catch(default)]

@@ -131,10 +131,10 @@ async fn main() -> std_Result<(), rocket::Error> {
         .manage(pools)
         .manage(tx)
         .register("/", catchers![default_catcher])
-        .mount("/public", FileServer::from("D:/public"))
+        .mount("/files", FileServer::from("D:/kingdee  File"))
         .mount("/", routes![index, receiveMsg, upload, test_fn, event_conn])
         .mount("/user", routes![login_post, getSmsCode, login_get])
-        .mount("/flowform", routes![getItemList, getFlowDetail])
+        .mount("/flowform", routes![getItemList, getFlowDetail,getFlowDetailRows])
         .launch()
         .await?;
 

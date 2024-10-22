@@ -57,6 +57,7 @@ rocket_ws = "0.1.1"
 ##随机数
 rand = '0.8'
 
+
 [profile.release]
 opt-level = 3     #优化级别
 strip = true      #移除符号信息

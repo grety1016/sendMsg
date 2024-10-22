@@ -6,7 +6,10 @@ use jsonwebtoken::{
 use rocket::{
     data::{Data, ToByteUnit},
     fairing::{self, Fairing, Kind},
-    http::{uri::Origin, Header as RocketHeader, Method, Status},
+    http::{
+        uri::{self, Origin},
+        Header as RocketHeader, Method, Status,
+    },
     request::Outcome,
     response::Responder,
     serde::json::Json,
@@ -89,27 +92,28 @@ impl Fairing for TokenFairing {
 
     async fn on_request(&self, req: &mut Request<'_>, _data: &mut Data<'_>) {
         // println!("{}", req.uri().path());
-        println!("{}", req);
+        // println!("{:#?}", req);
         //为了匹配路由url将所有的地址全部转换为小写
-        let uri = req.uri().to_string().to_lowercase(); 
+        let uri = req.uri().to_string().to_lowercase();
+        //将url转换成小写后回写到请求中
+        let url = Origin::try_from(uri.clone()).unwrap();
+        req.set_uri(url);
 
         //记录下用户原始请求的URL
         let originURL = format!("http://{}{}", req.host().unwrap(), uri);
         req.add_header(RocketHeader::new("originURL", originURL));
         //判断一下是否是短信验证码接口，如果是，则无需验证token,直接请求路由
-        if uri.starts_with("/user/getsmscode") {
+        if uri.starts_with("/user/getsmscode") || uri.starts_with("/files") {
             return;
         }
-        //将url转换成小写后回写到请求中
-        let url = Origin::try_from(uri).unwrap();
-        req.set_uri(url);
+
         //从表头中读取token字段，并验证token是否有效
         let token = req.headers().get_one("Authorization");
         let mut verifyResult: bool = false;
         if let Some(value) = token {
             verifyResult = Claims::verify_token(value.to_string()).await;
         }
-       
+
         //token验证成功
         if verifyResult {
             //判断是否访问主页，如果是，则重定向到登录页面
@@ -194,8 +198,9 @@ pub struct FlowItemList {
 //创建FlowForm明细信息结构体
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FlowDetail {
-    pub available:i32,
+    pub available: i32,
     fBillNo: String,         // 流程编码
+    fFormType: String,       // 表单类型
     fOrgID: String,          // 申请组织
     fRequestDeptID: String,  // 申请部门
     fProposerID: String,     // 申请人
@@ -208,6 +213,29 @@ pub struct FlowDetail {
     years: String,
     status: String, // 年份
 }
+
+//创建流程表单明细行结构体
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlowDetailRow {
+    pub attachments: Option<Vec<Attachments>>,
+    pub fSnnaAttachments: String,
+    pub fName: String,
+    pub fExpenseAmount: f64,
+    pub fExpSubmitAmount: f64,
+    pub years: String,
+}
+//创建流程表单明细行结构体-附件结构体
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Attachments {
+    pub ServerFileName: String,
+    pub FileName: String,
+    pub FileLength: f64,
+    pub FileBytesLength: f64,
+    pub FileSize: Option<String>,
+    pub FileType: Option<String>,
+}
+ 
+
 //创建JWT结构体
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
