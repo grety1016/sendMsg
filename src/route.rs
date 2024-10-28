@@ -49,6 +49,8 @@ use route_method::*;
 //随机生成数字
 use rand::Rng;
 
+//引入文件路径 
+
 //引入sendmsg模块
 
 use crate::sendmsg::*;
@@ -61,16 +63,32 @@ pub struct Files<'r> {
     pub file_name: String,
     pub file_list: Vec<TempFile<'r>>,
 }
+//创建一个trait来实现&str的扩展方法
+trait MimeExt {
+    fn get_extension(&self) -> &str;
+}
+//为&str实现MimeExt
+impl MimeExt for &str {
+    fn get_extension(&self) -> &str {
+        self.rsplit('.').next().unwrap()
+    }
+} 
+
+
 #[post("/upload", format = "multipart/form-data", data = "<form>")]
 pub async fn upload(mut form: Form<Upload<'_>>) {
-    // let result = form.files.persist_to("D:/public/trf.txt").await;
-    // println!("{:#?}",result);
+    // let result = form.files.persist_to("D:/public/trf.txt").await;  
+     
+     //判断文件是否存在
+    let exist =Path::new("D:/public/ab.txt").exists();
+    println!("exist:{}",exist);
 
     for file in form.files.iter_mut() {
-        println!("file's name:{:#?}", file.name());
+        println!("file's name:{:#?}", file.name().unwrap());
+        println!("file's size:{:#?}", file.len());
         println!(
-            "file's name:{:#?}",
-            file.content_type().unwrap().to_string()
+            "file's type:{:#?}",
+            file.content_type().unwrap().to_string().as_str().get_extension()
         );
     }
 }
@@ -396,19 +414,19 @@ pub async fn getFlowDetailRows(
                 let filepath = match path.as_str() {
                     "jpg" | "png" | "jpeg" | "gif" => {
                         format!(
-                            "http://sendmsg.free.idcfengye.com/files/Image/{}/{}",
+                            "http://139.9.45.156:3197/files/Image/{}/{}",
                             detailrow.years, item.ServerFileName
                         )
                     }
                     "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" => {
                         format!(
-                            "http://sendmsg.free.idcfengye.com/files/Doc/{}/{}",
+                            "http://139.9.45.156:3197/files/Doc/{}/{}",
                             detailrow.years, item.ServerFileName
                         )
                     }
                     _ => {
                         format!(
-                            "http://sendmsg.free.idcfengye.com/files/Other/{}/{}",
+                            "http://139.9.45.156:3197/files/Other/{}/{}",
                             detailrow.years, item.ServerFileName
                         )
                     } //"txt" | "rar" | "zip" | "csv"

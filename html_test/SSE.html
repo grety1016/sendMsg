@@ -21,6 +21,7 @@
 
 <script>
    const eventSource = new EventSource('http://127.0.0.1:8000/event_conn');
+   
 
   eventSource.onmessage = (event) => {
     console.log(event);

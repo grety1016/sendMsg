@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Get Auth Code</title>
+    <script src="https://g.alicdn.com/dingding/open-develop/1.9.0/dingtalk.js"></script>
+</head>
+<body>
+    <script>
+        // 调用 dd.getAuthCode
+        dd.ready(function() {
+            dd.getAuthCode({
+                corpId: "ding1412a107c2d5a0e435c2f4657eb6378f", // 替换为你的企业ID
+                success: function(res) {
+                    var authCode = res.authCode;
+                    console.log('获取授权码成功:', authCode);
+                },
+                fail: function(err) {
+                    console.error('获取授权码失败:', err);
+                }
+            });
+        });
+
+        // 调用 dd.error 来处理钉钉错误
+        dd.error(function(err) {
+            console.error('钉钉调用出错:', err);
+        });
+    </script>
+</body>
+</html>

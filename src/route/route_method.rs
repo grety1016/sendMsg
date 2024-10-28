@@ -184,6 +184,7 @@ pub struct FlowItemList {
     rn: i32,
     fStatus: String,
     fNumber: String,
+    fFormID: String,
     fFormType: String,
     fDisplayName: String,
     todoStatus: i32,
@@ -234,7 +235,6 @@ pub struct Attachments {
     pub FileSize: Option<String>,
     pub FileType: Option<String>,
 }
- 
 
 //创建JWT结构体
 #[derive(Debug, Serialize, Deserialize)]

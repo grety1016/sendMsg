@@ -69,8 +69,7 @@ use httprequest::Client;
 //配置静态文件
 
 #[rocket::main]
-async fn main() -> std_Result<(), rocket::Error> { 
-
+async fn main() -> std_Result<(), rocket::Error> {
     //初始化trancing日志追踪
     init();
 
@@ -78,8 +77,7 @@ async fn main() -> std_Result<(), rocket::Error> {
     let sendmsg = SendMSG::new();
     let pools = sendmsg.buildpools(60, 8).unwrap();
 
-    //创建多播消息通道
-    #[allow(unused)]
+    //创建消息通道
     let (tx, _) = broadcast::channel::<String>(200);
 
     // //使用rocket_cors处理跨域同源策略问题：
@@ -104,19 +102,21 @@ async fn main() -> std_Result<(), rocket::Error> {
         address: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), //外网地址： http://8sjqkmbn.beesnat.com/
         // address: IpAddr::V4(Ipv4Addr::new(192, 168, 0, 31)),
         port: 8000,
-        temp_dir: RelativePathBuf::from("/2、RustProgramming/sendMsg/temp"),
-        //cli_colors: false,
+        temp_dir: RelativePathBuf::from("/temp"),
+        // cli_colors: false,
+        // temp_dir: RelativePathBuf::from("/2、RustProgramming/sendMsg/temp"),
+        // cli_colors: false,
         ..Default::default()
     };
 
     let limits = Limits::new()
-        .limit("json", 20.mebibytes())
-        .limit("file", 20.mebibytes())
-        .limit("file/zip", 20.mebibytes())
-        .limit("bytes", 20.mebibytes())
-        .limit("form-data", 20.mebibytes())
-        .limit("data-form", 20.mebibytes())
-        .limit("form", 20.mebibytes());
+        .limit("json", 120.mebibytes())
+        .limit("file", 120.mebibytes())
+        .limit("file/zip", 120.mebibytes())
+        .limit("bytes", 120.mebibytes())
+        .limit("form-data", 120.mebibytes())
+        .limit("data-form", 120.mebibytes())
+        .limit("form", 120.mebibytes());
 
     //rocket启动配置合并文件大小限制
     let figment = Figment::from(config).merge(("limits", limits));
@@ -129,12 +129,15 @@ async fn main() -> std_Result<(), rocket::Error> {
         .attach(TokenFairing)
         // .attach(cors)
         .manage(pools)
-        .manage(tx)
+        .manage(tx) 
         .register("/", catchers![default_catcher])
         .mount("/files", FileServer::from("D:/kingdee  File"))
         .mount("/", routes![index, receiveMsg, upload, test_fn, event_conn])
         .mount("/user", routes![login_post, getSmsCode, login_get])
-        .mount("/flowform", routes![getItemList, getFlowDetail,getFlowDetailRows])
+        .mount(
+            "/flowform",
+            routes![getItemList, getFlowDetail, getFlowDetailRows],
+        )
         .launch()
         .await?;
 
