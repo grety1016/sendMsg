@@ -1,6 +1,6 @@
 use chrono::format;
 use core::panic;
-use std::{borrow::Borrow, io, path::Path, result::Result, sync::Arc, time::Duration};
+use std::{borrow::Borrow, io, path::Path, result::Result, sync::Arc};
 use tracing::field;
 //引入rocket
 use rocket::{
@@ -20,17 +20,20 @@ use rocket::{
         stream::{Event, EventStream},
     },
     routes,
-    serde::json::Json,
-    tokio::sync::broadcast::{Receiver, Sender},
+    serde::json::{Json, Value},
+    tokio::{
+        self, select,
+        sync::broadcast::{Receiver, Sender},
+        task,
+        time::{sleep, Duration},
+    },
     FromForm, Request, Response, Shutdown, State,
 };
 //引入rocket_ws
 use rocket_ws::{self, stream::DuplexStream, Message, WebSocket};
-//引入tokio
-use rocket::tokio::{self, select, task, time};
 //引入serde_json
 use serde::{de::value::CowStrDeserializer, Deserialize, Serialize};
-use serde_json::json; //用于结构体上方的系列化宏
+// use serde_json::json; //用于结构体上方的系列化宏
 
 //日志跟踪
 pub use tracing::{event, info, trace, warn, Level};
@@ -49,7 +52,7 @@ use route_method::*;
 //随机生成数字
 use rand::Rng;
 
-//引入文件路径 
+//引入文件路径
 
 //引入sendmsg模块
 
@@ -72,23 +75,26 @@ impl MimeExt for &str {
     fn get_extension(&self) -> &str {
         self.rsplit('.').next().unwrap()
     }
-} 
-
-
+}
+//定义上传表单测试路由
 #[post("/upload", format = "multipart/form-data", data = "<form>")]
 pub async fn upload(mut form: Form<Upload<'_>>) {
-    // let result = form.files.persist_to("D:/public/trf.txt").await;  
-     
-     //判断文件是否存在
-    let exist =Path::new("D:/public/ab.txt").exists();
-    println!("exist:{}",exist);
+    // let result = form.files.persist_to("D:/public/trf.txt").await;
+
+    //判断文件是否存在
+    let exist = Path::new("D:/public/ab.txt").exists();
+    println!("exist:{}", exist);
 
     for file in form.files.iter_mut() {
         println!("file's name:{:#?}", file.name().unwrap());
         println!("file's size:{:#?}", file.len());
         println!(
             "file's type:{:#?}",
-            file.content_type().unwrap().to_string().as_str().get_extension()
+            file.content_type()
+                .unwrap()
+                .to_string()
+                .as_str()
+                .get_extension()
         );
     }
 }
@@ -142,13 +148,13 @@ pub async fn event_conn() -> EventStream![] {
     let mut num = 0;
     EventStream! {
         loop{
-            time::sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_secs(1)).await;
             num+=1;
             yield Event::data(format!("form server message{}",num));
         }
     }
 }
-
+//用于处理获取smscode验证码路由
 #[get("/getsmscode?<userphone>")]
 pub async fn getSmsCode(userphone: String, pools: &State<Pool>) -> Json<LoginResponse> {
     let mut code = StatusCode::Success as i32;
@@ -202,7 +208,7 @@ pub async fn getSmsCode(userphone: String, pools: &State<Pool>) -> Json<LoginRes
         errMsg,
     })
 }
-
+//优雅关机操作
 #[get("/shutdown")]
 pub fn shutdown(_shutdown: Shutdown) -> &'static str {
     // let value = IS_WORKING.lock().unwrap();
@@ -212,9 +218,9 @@ pub fn shutdown(_shutdown: Shutdown) -> &'static str {
     //     shutdown.notify();
     //     "优雅关机!!！"
     // }
-    "优雅关机!!！"
+    "优雅关机!!!"
 }
-
+//接收钉钉消息
 #[post("/receiveMsg", format = "json", data = "<data>")]
 pub async fn receiveMsg(data: Json<RecvMessage>) {
     println!("{:#?}", data);
@@ -254,7 +260,7 @@ pub async fn login_get() -> ApiResponse<CstResponse> {
     ApiResponse::Unauthorized(Json(cstcode))
 }
 
-//请求守卫，用于验证表头与表体token是否匹配
+//请求守卫，用于验证表头token与表体手机是否匹配
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for LoginResponse {
     type Error = ();
@@ -280,6 +286,7 @@ impl<'r> FromRequest<'r> for LoginResponse {
     }
 }
 
+//登录验证POST路由
 #[post("/login", format = "application/json", data = "<user>")]
 pub async fn login_post<'r>(
     loginrespon: LoginResponse,
@@ -329,6 +336,7 @@ pub async fn login_post<'r>(
     // 加入任务
 }
 
+//获取用户流程列表路由
 #[get("/getitemlist?<userphone>&<itemstatus>")]
 pub async fn getItemList(
     loginrespon: LoginResponse,
@@ -355,24 +363,24 @@ pub async fn getItemList(
     Json(flowitemlist)
 }
 
-#[get("/getflowdetail?<fprocinstid>&<fformtype>")]
-pub async fn getFlowDetail(
+//获取用户流程明细路由（费用报销与差旅报销）
+#[get("/getflowdetailfybxandclbx?<fprocinstid>")]
+pub async fn getFlowDetailFybxAndClbx(
     loginrespon: LoginResponse,
     fprocinstid: String,
-    fformtype: String,
     pool: &State<Pool>,
-) -> ApiResponse<Vec<FlowDetail>> {
+) -> ApiResponse<Vec<FlowDetailFybxAndClbx>> {
     let conn = pool.get().await.unwrap();
-
-    let flowdetail: Vec<FlowDetail> = conn
+    // println!("fprocinstid:{},phone:{}", &fprocinstid, &loginrespon.userPhone);
+    let flowdetail: Vec<FlowDetailFybxAndClbx> = conn
         .query_collect(sql_bind!(
-            "SELECT * FROM getFlowDetail(@p1,@p2,@p3)",
+            "SELECT * FROM getFlowDetailFybxAndClbx(@p1,@p2)",
             &fprocinstid,
-            &loginrespon.userPhone,
-            &fformtype
+            &loginrespon.userPhone
         ))
         .await
         .unwrap();
+    // println!("flowdetail:{:#?}", flowdetail);
     if flowdetail[0].available == 1 {
         ApiResponse::Success(Json(flowdetail))
     } else {
@@ -380,22 +388,23 @@ pub async fn getFlowDetail(
     }
 }
 
-#[get("/getflowdetailrows?<fprocinstid>")]
-pub async fn getFlowDetailRows(
-    fprocinstid: String,
-    pool: &State<Pool>,
-) -> Json<Vec<FlowDetailRow>> {
+//获取用户流程明细报销明细路由（费用报销）
+#[get("/getflowdetailrowsfybx?<fprocinstid>")]
+pub async fn getFlowDetailRowsFybx(fprocinstid: String, pool: &State<Pool>) -> Json<Value> {
     let conn = pool.get().await.unwrap();
-    //查询明细行的数据数组
-    let mut flowdetailrows: Vec<FlowDetailRow> = conn
+    #[allow(unused_assignments)]
+    let mut flowdetailrowsfybx: Vec<FlowDetailRowFybx> = Vec::new();
+
+    //查询明细行费用报销单的数据数组
+    flowdetailrowsfybx = conn
         .query_collect(sql_bind!(
-            "SELECT * FROM getFlowDetailRows(@p1)",
+            "SELECT * FROM getFlowDetailRowsFybx(@p1)",
             &fprocinstid
         ))
         .await
         .unwrap();
     //遍历明细行数据
-    for detailrow in flowdetailrows.iter_mut() {
+    for detailrow in flowdetailrowsfybx.iter_mut() {
         //将附件数据转换成json数组
         detailrow.attachments =
             serde_json::from_str(&detailrow.fSnnaAttachments).unwrap_or(Some(vec![]));
@@ -414,19 +423,19 @@ pub async fn getFlowDetailRows(
                 let filepath = match path.as_str() {
                     "jpg" | "png" | "jpeg" | "gif" => {
                         format!(
-                            "http://139.9.45.156:3197/files/Image/{}/{}",
+                            "http://8sjqkmbn.beesnat.com/files/Image/{}/{}",
                             detailrow.years, item.ServerFileName
                         )
                     }
                     "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" => {
                         format!(
-                            "http://139.9.45.156:3197/files/Doc/{}/{}",
+                            "http://8sjqkmbn.beesnat.com/files/Doc/{}/{}",
                             detailrow.years, item.ServerFileName
                         )
                     }
                     _ => {
                         format!(
-                            "http://139.9.45.156:3197/files/Other/{}/{}",
+                            "http://8sjqkmbn.beesnat.com/files/Other/{}/{}",
                             detailrow.years, item.ServerFileName
                         )
                     } //"txt" | "rar" | "zip" | "csv"
@@ -447,9 +456,142 @@ pub async fn getFlowDetailRows(
             }
         }
     }
-    Json(flowdetailrows)
+    Json(serde_json::to_value(&flowdetailrowsfybx).unwrap())
 }
 
+//获取用户流程明细报销明细路由（差旅报销）
+#[get("/getflowdetailrowsclbx?<fprocinstid>")]
+pub async fn getFlowDetailRowsClbx(fprocinstid: String, pool: &State<Pool>) -> Json<Value> {
+    let conn = pool.get().await.unwrap();
+    #[allow(unused_assignments)]
+    let mut flowdetailrowsfybx: Vec<FlowDetailRowClbx> = Vec::new();
+
+    //查询明细行费用报销单的数据数组
+    flowdetailrowsfybx = conn
+        .query_collect(sql_bind!(
+            "SELECT * FROM getFlowDetailRowsClbx(@p1)",
+            &fprocinstid
+        ))
+        .await
+        .unwrap();
+    //遍历明细行数据
+    for detailrow in flowdetailrowsfybx.iter_mut() {
+        //将附件数据转换成json数组
+        detailrow.attachments =
+            serde_json::from_str(&detailrow.fSnnaAttachments).unwrap_or(Some(vec![]));
+        //清空附件字符串
+        detailrow.fSnnaAttachments = "".to_string();
+        //遍历Optiono数据
+        for Attachment in detailrow.attachments.iter_mut() {
+            for item in Attachment.iter_mut() {
+                let path = Path::new(item.FileName.as_str())
+                    .extension()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+                item.FileType = Some(path.to_string());
+                let filepath = match path.as_str() {
+                    "jpg" | "png" | "jpeg" | "gif" => {
+                        format!(
+                            "http://8sjqkmbn.beesnat.com/files/Image/{}/{}",
+                            detailrow.years, item.ServerFileName
+                        )
+                    }
+                    "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" => {
+                        format!(
+                            "http://8sjqkmbn.beesnat.com/files/Doc/{}/{}",
+                            detailrow.years, item.ServerFileName
+                        )
+                    }
+                    _ => {
+                        format!(
+                            "http://8sjqkmbn.beesnat.com/files/Other/{}/{}",
+                            detailrow.years, item.ServerFileName
+                        )
+                    } //"txt" | "rar" | "zip" | "csv"
+                };
+                item.ServerFileName = format!("{}.{}", filepath, path);
+                if item.FileBytesLength / 1024_f64 >= 1024_f64 {
+                    item.FileSize = Some(format!(
+                        "{:.2}MB",
+                        item.FileBytesLength / 1024_f64 / 1024_f64
+                    ));
+                    item.FileBytesLength = 0_f64;
+                    item.FileLength = 0_f64;
+                } else {
+                    item.FileSize = Some(format!("{:.2}KB", item.FileBytesLength / 1024_f64));
+                    item.FileBytesLength = 0_f64;
+                    item.FileLength = 0_f64;
+                }
+            }
+        }
+    }
+    Json(serde_json::to_value(&flowdetailrowsfybx).unwrap())
+}
+
+//获取用户流程明细路由（费用申请）
+#[get("/getflowdetailfysqandccsq?<fprocinstid>")]
+pub async fn getFlowDetailFysqAndCcsq(
+    loginrespon: LoginResponse,
+    fprocinstid: String,
+    pool: &State<Pool>,
+) -> ApiResponse<Vec<FlowDetailFysqAndCcsq>> {
+    let conn = pool.get().await.unwrap();
+    // println!("fprocinstid:{},phone:{}", &fprocinstid, &loginrespon.userPhone);
+    let flowdetail: Vec<FlowDetailFysqAndCcsq> = conn
+        .query_collect(sql_bind!(
+            "SELECT * FROM getFlowDetailFysqAndCcsq(@p1,@p2)",
+            &fprocinstid,
+            &loginrespon.userPhone
+        ))
+        .await
+        .unwrap();
+    // println!("flowdetail:{:#?}", flowdetail);
+    if flowdetail[0].available == 1 {
+        ApiResponse::Success(Json(flowdetail))
+    } else {
+        ApiResponse::Forbidden(Json(flowdetail))
+    }
+}
+
+//获取用户流程明细费用申请明细路由（费用申请）
+#[get("/getflowdetailrowfysq?<fprocinstid>")]
+pub async fn getFlowDetailRowsFysq(fprocinstid: String, pool: &State<Pool>) -> Json<Value> {
+    let conn = pool.get().await.unwrap(); 
+     
+
+    //查询明细行费用报销单的数据数组
+   let flowDetailRowFysq: Vec<FlowDetailRowFysq> = conn
+        .query_collect(sql_bind!(
+            "SELECT * FROM getFlowDetailRowsFysq(@p1)",
+            &fprocinstid
+        ))
+        .await
+        .unwrap();
+    Json(serde_json::to_value(&flowDetailRowFysq).unwrap())
+
+}
+
+//获取用户流程明细出差申请明细路由（出差申请）
+#[get("/getflowdetailrowccsq?<fprocinstid>")]
+pub async fn getFlowDetailRowsCcsq(fprocinstid: String, pool: &State<Pool>) -> Json<Value> {
+    let conn = pool.get().await.unwrap(); 
+     
+
+    //查询明细行费用报销单的数据数组
+   let flowDetailRowCcsq: Vec<FlowDetailRowCcsq> = conn
+        .query_collect(sql_bind!(
+            "SELECT * FROM getFlowDetailRowsCcsq(@p1)",
+            &fprocinstid
+        ))
+        .await
+        .unwrap();
+    Json(serde_json::to_value(&flowDetailRowCcsq).unwrap())
+
+}
+
+//全局错误处理
 #[catch(default)]
 pub async fn default_catcher(status: Status, req: &Request<'_>) -> ApiResponse<CstResponse> {
     // println!("not_found:{:#?}", req);

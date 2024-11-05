@@ -58,7 +58,7 @@ impl<'r> DDToken<'r> {
             .get(self.url)
             .query(&get_token_param)
             .send()
-            .await         
+            .await
             .unwrap()
             .text()
             .await

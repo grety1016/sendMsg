@@ -18,7 +18,7 @@ use rocket::{
     tokio::{
         self,
         sync::{broadcast, mpsc},
-        task::spawn,
+        task::{self, spawn, yield_now},
         time::{sleep, Duration},
     },
     Shutdown,
@@ -38,7 +38,6 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
-use tokio::task;
 
 //消息接口模块
 mod sendmsg;
@@ -129,14 +128,15 @@ async fn main() -> std_Result<(), rocket::Error> {
         .attach(TokenFairing)
         // .attach(cors)
         .manage(pools)
-        .manage(tx) 
+        .manage(tx)
         .register("/", catchers![default_catcher])
         .mount("/files", FileServer::from("D:/kingdee  File"))
         .mount("/", routes![index, receiveMsg, upload, test_fn, event_conn])
         .mount("/user", routes![login_post, getSmsCode, login_get])
         .mount(
             "/flowform",
-            routes![getItemList, getFlowDetail, getFlowDetailRows],
+            routes![getItemList, getFlowDetailFybxAndClbx, getFlowDetailRowsFybx,getFlowDetailRowsClbx,getFlowDetailFysqAndCcsq,getFlowDetailRowsFysq,
+            getFlowDetailRowsCcsq],
         )
         .launch()
         .await?;

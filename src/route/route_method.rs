@@ -180,28 +180,28 @@ impl LoginResponse {
 //创建FlowForm返回结构体
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FlowItemList {
-    eventName: String,
+    eventName: String, //事项名称
     rn: i32,
-    fStatus: String,
-    fNumber: String,
-    fFormID: String,
-    fFormType: String,
-    fDisplayName: String,
-    todoStatus: i32,
-    fName: String,
-    senderPhone: String,
-    fReceiverNames: String,
+    fStatus: String,        //（运行中、挂起、终止、暂停）
+    fNumber: String,        //实例编码
+    fFormID: String,        //流程单据ID
+    fFormType: String,      //流程单据类型
+    fDisplayName: String,   //实例名称
+    todoStatus: i32,        //处理状态（未处理、已处理）0：未处理 1：已处理  2：我发起
+    fName: String,          //流程发起者
+    senderPhone: String,    //发起者电话
+    fReceiverNames: String, //流程接收者
     fPhone: String,
-    fProcinstID: String,
-    fCreateTime: String,
+    ///接收者手机号
+    fProcinstID: String, //实例内码
+    fCreateTime: String, //流程创建日期
 }
 
-//创建FlowForm明细信息结构体
+//创建FlowForm明细信息结构体(费用报销单-差旅报销单)
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FlowDetail {
-    pub available: i32,
+pub struct FlowDetailFybxAndClbx {
+    pub available: i32,      //是否有效流程
     fBillNo: String,         // 流程编码
-    fFormType: String,       // 表单类型
     fOrgID: String,          // 申请组织
     fRequestDeptID: String,  // 申请部门
     fProposerID: String,     // 申请人
@@ -211,29 +211,89 @@ pub struct FlowDetail {
     fReqReimbAmountSum: f64, // 申请报销金额汇总
     fExpAmountSum: f64,      // 核定报销金额
     fCausa: String,          // 事由
-    years: String,
-    status: String, // 年份
+    years: String,           // 年份
+    status: String,          //状态
 }
 
-//创建流程表单明细行结构体
+//创建流程表单明细报销明细行结构体（费用报销单）
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FlowDetailRow {
-    pub attachments: Option<Vec<Attachments>>,
-    pub fSnnaAttachments: String,
-    pub fName: String,
-    pub fExpenseAmount: f64,
-    pub fExpSubmitAmount: f64,
-    pub years: String,
+pub struct FlowDetailRowFybx {
+    pub attachments: Option<Vec<Attachments>>, //附件列表
+    pub fSnnaAttachments: String,              //附件字符串
+    pub fName: String,                         //费用项目
+    pub fExpenseAmount: f64,                   //申请金额
+    pub fExpSubmitAmount: f64,                 //核定金额
+    pub years: String,                         //年份
 }
+//创建流程表单明细报销明细行结构体（差旅报销单）
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlowDetailRowClbx {
+    pub attachments: Option<Vec<Attachments>>, //附件列表
+    pub fSnnaAttachments: String,              //附件字符串
+    pub fClType: String,                       //差旅费类型
+    pub fTravelAmount: f64,                    //差旅费金额
+    pub fName: String,                         //费用项目
+    pub fExpenseAmount: f64,                   //申请金额
+    pub fExpSubmitAmount: f64,                 //核定金额                         //费用类型
+    pub years: String,                         //年份
+}
+
 //创建流程表单明细行结构体-附件结构体
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Attachments {
-    pub ServerFileName: String,
-    pub FileName: String,
-    pub FileLength: f64,
-    pub FileBytesLength: f64,
-    pub FileSize: Option<String>,
-    pub FileType: Option<String>,
+    pub ServerFileName: String,   //文件地址
+    pub FileName: String,         //文件名称
+    pub FileLength: f64,          //
+    pub FileBytesLength: f64,     //
+    pub FileType: Option<String>, //文件类型
+    pub FileSize: Option<String>, //文件大小
+}
+
+//创建FlowForm明细信息结构体(费用申请单)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlowDetailFysqAndCcsq {
+    pub available: i32,      //是否有效流程
+    fBillNo: String,         // 流程编码
+    fOrgID: String,          // 申请组织
+    fRequestDeptID: String,  // 申请部门
+    fProposerID: String,     // 申请人
+    fExpenseOrgID: String,   // 费用组织
+    fExpenseDeptID: String,  // 费用部门
+    fIsBorrow: String,       // 是否借款
+    fCurrency: String,       // 币别
+    fReqReimbAmountSum: f64, // 申请金额汇总
+    fExpAmountSum: f64,      // 核定金额汇总
+    fCausa: String,          // 事由
+    years: String,           // 年份
+    status: String,          //状态
+}
+
+//创建流程表单明细报销明细行结构体（费用申请单）
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlowDetailRowFysq {
+    pub fName: String,            //费用项目
+    pub fExpenseAmount: f64,      //申请金额
+    pub fExpSubmitAmount: String, //核定金额
+    pub fStartDate: String,       //开始日期
+    pub years: String,            //年份
+}
+//创建流程表单明细报销明细行结构体（出差申请单）
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlowDetailRowCcsq {
+    pub fName: String,            //费用项目
+    pub fExpenseAmount: f64,      //申请金额
+    pub fExpSubmitAmount: String, //核定金额
+    pub fStartDate: String,       //开始日期
+    pub fEndDate: String,
+    pub fTtravelStartSite: String, //出发地
+    pub fTravelEndSite: String,    //目的地
+    pub fAirTicketCost: f64,       //机票
+    pub fOtherRemoteCost: f64,     //其他长途费用
+    pub fFlocalCost: f64,          //市内交通费
+    pub fAccomFee: f64,            //住宿费
+    pub fOtherExpense: f64,        //其他费用
+    pub fTravelSubsidy: f64,       //差旅补贴
+    pub years: String,             //年份
 }
 
 //创建JWT结构体
