@@ -1,8 +1,8 @@
 //引入JWT模块
+use chrono::NaiveDateTime;
 use jsonwebtoken::{
     decode, encode, Algorithm, DecodingKey, EncodingKey, Header as JWTHeader, Validation,
 };
-
 use rocket::{
     data::{Data, ToByteUnit},
     fairing::{self, Fairing, Kind},
@@ -15,6 +15,9 @@ use rocket::{
     serde::json::Json,
     uri, FromForm, Request, Response,
 };
+use tracing_subscriber::fmt::format;
+
+use std::{fs, path::Path, process::Command};
 
 //Hash加密库:
 pub use crypto::{digest::Digest, sha2::Sha256};
@@ -249,7 +252,91 @@ pub struct Attachments {
     pub FileSize: Option<String>, //文件大小
 }
 
-//创建FlowForm明细信息结构体(费用申请单)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AttachParams {
+    pub sourceFile: String, //文件地址
+    pub outerPath: String,
+    pub fileExtClone: String,
+}
+
+impl Attachments {
+    //处理附件内容
+    pub async fn handle_attachments(FlowDetailRow: &mut Option<Vec<Attachments>>, year: &str) {
+        //遍历Optiono数据
+        for Attachment in FlowDetailRow.iter_mut() {
+            for item in Attachment.iter_mut() {
+                let fileExt = Path::new(item.FileName.as_str())
+                    .extension()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+                item.FileType = Some(fileExt.to_string());
+                let filepath = match fileExt.as_str() {
+                    "jpg" | "png" | "jpeg" | "gif" => {
+                        format!("/sendmsg/files/Image/{}/{}", year, item.ServerFileName)
+                    }
+                    "pdf" | "docx" | "xlsx" | "pptx" => {
+                        format!("/sendmsg/files/Doc/{}/{}", year, item.ServerFileName)
+                    }
+                    "doc" | "xls" | "ppt" => {
+                        format!("/sendmsg/files/Doc/{}/{}", year, item.ServerFileName)
+                    }
+                    _ => {
+                        format!("/sendmsg/files/Other/{}/{}", year, item.ServerFileName)
+                    } //"txt" | "rar" | "zip" | "csv"
+                };
+                //*处理文件转换任务*/
+                if fileExt == "xls" || fileExt == "doc" || fileExt == "ppt" {
+                    let pathCheck = format!(
+                        "D:\\kingdee  File\\doc\\{}\\{}.{}x",
+                        year, item.ServerFileName, fileExt
+                    );
+                    if fs::metadata(pathCheck).is_ok() {
+                        //如果文件存在，则不转换，无需任何处理，空代码块
+                        {}
+                    } else {
+                        let sourceFile = format!(
+                            "D:\\kingdee  File\\doc\\{}\\{}.{}",
+                            year, item.ServerFileName, fileExt
+                        );
+                        let outerPath = format!("D:\\kingdee  File\\doc\\{}", year);
+                        let fileExtClone = format!("{}x", fileExt);
+                        println!("sourceFile:{},{},{}", sourceFile, outerPath, fileExtClone);
+                        let output =
+                            Command::new("C:\\Program Files\\LibreOffice\\program\\soffice")
+                                .arg("--headless")
+                                .arg("--convert-to")
+                                .arg(&fileExtClone)
+                                .arg("--outdir")
+                                .arg(outerPath)
+                                .arg(sourceFile)
+                                .output()
+                                .expect("Failed to execute command");
+                        println!("stdout: {}", output.status.success());
+                    }
+                }
+                //*处理文件转换任务*/
+                item.ServerFileName = format!("{}.{}", filepath, fileExt);
+
+                if item.FileBytesLength / 1024_f64 >= 1024_f64 {
+                    item.FileSize = Some(format!(
+                        "{:.2}MB",
+                        item.FileBytesLength / 1024_f64 / 1024_f64
+                    ));
+                    item.FileBytesLength = 0_f64;
+                    item.FileLength = 0_f64;
+                } else {
+                    item.FileSize = Some(format!("{:.2}KB", item.FileBytesLength / 1024_f64));
+                    item.FileBytesLength = 0_f64;
+                    item.FileLength = 0_f64;
+                }
+            }
+        }
+    }
+}
+
+//创建FlowForm明细信息结构体(费用申请单-出差申请单)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FlowDetailFysqAndCcsq {
     pub available: i32,      //是否有效流程
@@ -271,29 +358,66 @@ pub struct FlowDetailFysqAndCcsq {
 //创建流程表单明细报销明细行结构体（费用申请单）
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FlowDetailRowFysq {
-    pub fName: String,            //费用项目
-    pub fExpenseAmount: f64,      //申请金额
-    pub fExpSubmitAmount: String, //核定金额
-    pub fStartDate: String,       //开始日期
-    pub years: String,            //年份
+    fName: String,            //费用项目
+    fExpenseAmount: f64,      //申请金额
+    fExpSubmitAmount: String, //核定金额
+    fStartDate: String,       //开始日期
+    years: String,            //年份
 }
 //创建流程表单明细报销明细行结构体（出差申请单）
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FlowDetailRowCcsq {
-    pub fName: String,            //费用项目
-    pub fExpenseAmount: f64,      //申请金额
-    pub fExpSubmitAmount: String, //核定金额
-    pub fStartDate: String,       //开始日期
-    pub fEndDate: String,
-    pub fTtravelStartSite: String, //出发地
-    pub fTravelEndSite: String,    //目的地
-    pub fAirTicketCost: f64,       //机票
-    pub fOtherRemoteCost: f64,     //其他长途费用
-    pub fFlocalCost: f64,          //市内交通费
-    pub fAccomFee: f64,            //住宿费
-    pub fOtherExpense: f64,        //其他费用
-    pub fTravelSubsidy: f64,       //差旅补贴
-    pub years: String,             //年份
+    fName: String,            //费用项目
+    fExpenseAmount: f64,      //申请金额
+    fExpSubmitAmount: String, //核定金额
+    fStartDate: String,       //开始日期
+    fEndDate: String,
+    fTtravelStartSite: String, //出发地
+    fTravelEndSite: String,    //目的地
+    fAirTicketCost: f64,       //机票
+    fOtherRemoteCost: f64,     //其他长途费用
+    fFlocalCost: f64,          //市内交通费
+    fAccomFee: f64,            //住宿费
+    fOtherExpense: f64,        //其他费用
+    fTravelSubsidy: f64,       //差旅补贴
+    years: String,             //年份
+}
+
+//创建FlowForm明细信息结构体(采购订单)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlowDetailCgdd {
+    pub available: i32, //是否有效流程
+    fDate: String,      // 采购日期
+    fOrgName: String,   // 申请组织
+    fSupNmae: String,   // 供应商
+    fUserName: String,  // 申请人
+    fAllAmount: f64,    // 价税合计
+    years: String,      // 年份
+    status: String,     //状态
+}
+
+//创建流程表单明细采购明细行结构体（采购订单）
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlowDetailRowCgdd {
+    fNumber: String,    //物料编码
+    fMatName: String,   //物料名称
+    fUnitName: String,  //单位名称
+    fQty: f64,          //数量
+    fTaxPrice: f64,     //含税单价
+    fAllAmount: String, //价税合计
+    fCityName: String,  //城市
+    fNote: String,      //备注
+}
+
+//创建流程明细流程图结构体
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlowDetailFlowChart {
+    fNoteName: String,          //节点名称
+    fName: String,              //用户名
+    fActinstID: String,         //节点ID
+    fCreateTime: NaiveDateTime, //生成日期（排序用）
+    fActionName: String,        //处理状态
+    fActionTime: NaiveDateTime, //操作日期
 }
 
 //创建JWT结构体

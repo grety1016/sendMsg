@@ -33,7 +33,7 @@ pub use std::result::Result as std_Result;
 pub use std::{fmt, process, thread};
 #[allow(unused)]
 use std::{
-    fs::File,
+    fs::{self, File},
     net::{IpAddr, Ipv4Addr, UdpSocket},
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -46,6 +46,7 @@ use sendmsg::*;
 //路由定义模块
 pub mod route;
 use route::*;
+use route_method::*;
 
 //日志追踪模块
 pub mod log_record;
@@ -54,6 +55,8 @@ pub use log_record::*;
 //网络请求
 
 use httprequest::Client;
+
+use mssql::*;
 
 //MAC地址
 // use mac_address::get_mac_address;
@@ -72,16 +75,16 @@ async fn main() -> std_Result<(), rocket::Error> {
     //初始化trancing日志追踪
     init();
 
-    //创建消息对象用于生成数据库连接池
+    //*创建消息对象用于生成数据库连接池
     let sendmsg = SendMSG::new();
     let pools = sendmsg.buildpools(60, 8).unwrap();
 
     //创建消息通道
-    let (tx, _) = broadcast::channel::<String>(200);
+    let (tx, _) = broadcast::channel::<AttachParams>(200);
 
-    // //使用rocket_cors处理跨域同源策略问题：
+    //*使用rocket_cors处理跨域同源策略问题：
     // let allowed_origins = AllowedOrigins::all();
-    // //cors请求处理配置
+    //*cors请求处理配置
     // let cors = CorsOptions {
     //     allowed_origins,
     //     allowed_methods: vec![Method::Get, Method::Post, Method::Put, Method::Delete]
@@ -135,8 +138,18 @@ async fn main() -> std_Result<(), rocket::Error> {
         .mount("/user", routes![login_post, getSmsCode, login_get])
         .mount(
             "/flowform",
-            routes![getItemList, getFlowDetailFybxAndClbx, getFlowDetailRowsFybx,getFlowDetailRowsClbx,getFlowDetailFysqAndCcsq,getFlowDetailRowsFysq,
-            getFlowDetailRowsCcsq],
+            routes![
+                getItemList,
+                getFlowDetailFybxAndClbx,
+                getFlowDetailRowsFybx,
+                getFlowDetailRowsClbx,
+                getFlowDetailFysqAndCcsq,
+                getFlowDetailRowsFysq,
+                getFlowDetailRowsCcsq,
+                getFlowDetailCgdd,
+                getFlowDetailRowsCgdd,
+                getFlowDetailFlowChart
+            ],
         )
         .launch()
         .await?;

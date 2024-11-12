@@ -39,7 +39,7 @@ use serde::{de::value::CowStrDeserializer, Deserialize, Serialize};
 pub use tracing::{event, info, trace, warn, Level};
 
 //引入mssql
-use mssql::*;
+pub use mssql::*;
 //引入seq-obj-id
 use seqid::*;
 //引入全局变量
@@ -410,52 +410,9 @@ pub async fn getFlowDetailRowsFybx(fprocinstid: String, pool: &State<Pool>) -> J
             serde_json::from_str(&detailrow.fSnnaAttachments).unwrap_or(Some(vec![]));
         //清空附件字符串
         detailrow.fSnnaAttachments = "".to_string();
-        //遍历Optiono数据
-        for Attachment in detailrow.attachments.iter_mut() {
-            for item in Attachment.iter_mut() {
-                let path = Path::new(item.FileName.as_str())
-                    .extension()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-                item.FileType = Some(path.to_string());
-                let filepath = match path.as_str() {
-                    "jpg" | "png" | "jpeg" | "gif" => {
-                        format!(
-                            "http://8sjqkmbn.beesnat.com/files/Image/{}/{}",
-                            detailrow.years, item.ServerFileName
-                        )
-                    }
-                    "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" => {
-                        format!(
-                            "http://8sjqkmbn.beesnat.com/files/Doc/{}/{}",
-                            detailrow.years, item.ServerFileName
-                        )
-                    }
-                    _ => {
-                        format!(
-                            "http://8sjqkmbn.beesnat.com/files/Other/{}/{}",
-                            detailrow.years, item.ServerFileName
-                        )
-                    } //"txt" | "rar" | "zip" | "csv"
-                };
-                item.ServerFileName = format!("{}.{}", filepath, path);
-                if item.FileBytesLength / 1024_f64 >= 1024_f64 {
-                    item.FileSize = Some(format!(
-                        "{:.2}MB",
-                        item.FileBytesLength / 1024_f64 / 1024_f64
-                    ));
-                    item.FileBytesLength = 0_f64;
-                    item.FileLength = 0_f64;
-                } else {
-                    item.FileSize = Some(format!("{:.2}KB", item.FileBytesLength / 1024_f64));
-                    item.FileBytesLength = 0_f64;
-                    item.FileLength = 0_f64;
-                }
-            }
-        }
-    }
+        //遍历Optiono数据,对附件内容进行处理调整,耗时的转换任务2秒
+        Attachments::handle_attachments(&mut detailrow.attachments,& detailrow.years).await;
+    }    
     Json(serde_json::to_value(&flowdetailrowsfybx).unwrap())
 }
 
@@ -481,51 +438,8 @@ pub async fn getFlowDetailRowsClbx(fprocinstid: String, pool: &State<Pool>) -> J
             serde_json::from_str(&detailrow.fSnnaAttachments).unwrap_or(Some(vec![]));
         //清空附件字符串
         detailrow.fSnnaAttachments = "".to_string();
-        //遍历Optiono数据
-        for Attachment in detailrow.attachments.iter_mut() {
-            for item in Attachment.iter_mut() {
-                let path = Path::new(item.FileName.as_str())
-                    .extension()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-                item.FileType = Some(path.to_string());
-                let filepath = match path.as_str() {
-                    "jpg" | "png" | "jpeg" | "gif" => {
-                        format!(
-                            "http://8sjqkmbn.beesnat.com/files/Image/{}/{}",
-                            detailrow.years, item.ServerFileName
-                        )
-                    }
-                    "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" => {
-                        format!(
-                            "http://8sjqkmbn.beesnat.com/files/Doc/{}/{}",
-                            detailrow.years, item.ServerFileName
-                        )
-                    }
-                    _ => {
-                        format!(
-                            "http://8sjqkmbn.beesnat.com/files/Other/{}/{}",
-                            detailrow.years, item.ServerFileName
-                        )
-                    } //"txt" | "rar" | "zip" | "csv"
-                };
-                item.ServerFileName = format!("{}.{}", filepath, path);
-                if item.FileBytesLength / 1024_f64 >= 1024_f64 {
-                    item.FileSize = Some(format!(
-                        "{:.2}MB",
-                        item.FileBytesLength / 1024_f64 / 1024_f64
-                    ));
-                    item.FileBytesLength = 0_f64;
-                    item.FileLength = 0_f64;
-                } else {
-                    item.FileSize = Some(format!("{:.2}KB", item.FileBytesLength / 1024_f64));
-                    item.FileBytesLength = 0_f64;
-                    item.FileLength = 0_f64;
-                }
-            }
-        }
+        //遍历Optiono数据,对附件内容进行处理调整
+        Attachments::handle_attachments(&mut detailrow.attachments,& detailrow.years).await;        
     }
     Json(serde_json::to_value(&flowdetailrowsfybx).unwrap())
 }
@@ -556,7 +470,7 @@ pub async fn getFlowDetailFysqAndCcsq(
 }
 
 //获取用户流程明细费用申请明细路由（费用申请）
-#[get("/getflowdetailrowfysq?<fprocinstid>")]
+#[get("/getflowdetailrowsfysq?<fprocinstid>")]
 pub async fn getFlowDetailRowsFysq(fprocinstid: String, pool: &State<Pool>) -> Json<Value> {
     let conn = pool.get().await.unwrap(); 
      
@@ -574,7 +488,7 @@ pub async fn getFlowDetailRowsFysq(fprocinstid: String, pool: &State<Pool>) -> J
 }
 
 //获取用户流程明细出差申请明细路由（出差申请）
-#[get("/getflowdetailrowccsq?<fprocinstid>")]
+#[get("/getflowdetailrowsccsq?<fprocinstid>")]
 pub async fn getFlowDetailRowsCcsq(fprocinstid: String, pool: &State<Pool>) -> Json<Value> {
     let conn = pool.get().await.unwrap(); 
      
@@ -588,6 +502,67 @@ pub async fn getFlowDetailRowsCcsq(fprocinstid: String, pool: &State<Pool>) -> J
         .await
         .unwrap();
     Json(serde_json::to_value(&flowDetailRowCcsq).unwrap())
+
+}
+
+//获取用户流程明细路由（采购订单）
+#[get("/getflowdetailcgdd?<fprocinstid>")]
+pub async fn getFlowDetailCgdd(
+    loginrespon: LoginResponse,
+    fprocinstid: String,
+    pool: &State<Pool>,
+) -> ApiResponse<Vec<FlowDetailCgdd>> {
+    let conn = pool.get().await.unwrap();
+    // println!("fprocinstid:{},phone:{}", &fprocinstid, &loginrespon.userPhone);
+    let flowdetail: Vec<FlowDetailCgdd> = conn
+        .query_collect(sql_bind!(
+            "SELECT * FROM getFlowDetailCgdd(@p1,@p2)",
+            &fprocinstid,
+            &loginrespon.userPhone
+        ))
+        .await
+        .unwrap();
+    // println!("flowdetail:{:#?}", flowdetail);
+    if flowdetail[0].available == 1 {
+        ApiResponse::Success(Json(flowdetail))
+    } else {
+        ApiResponse::Forbidden(Json(flowdetail))
+    }
+}
+
+//获取用户流程明细采购订单明细路由（采购订单）
+#[get("/getflowdetailrowscgdd?<fprocinstid>")]
+pub async fn getFlowDetailRowsCgdd(fprocinstid: String, pool: &State<Pool>) -> Json<Value> {
+    let conn = pool.get().await.unwrap(); 
+     
+
+    //查询明细行费用报销单的数据数组
+   let flowDetailRowCgdd: Vec<FlowDetailRowCgdd> = conn
+        .query_collect(sql_bind!(
+            "SELECT * FROM getFlowDetailRowCgdd(@p1)",
+            &fprocinstid
+        ))
+        .await
+        .unwrap(); 
+    Json(serde_json::to_value(&flowDetailRowCgdd).unwrap())
+
+}
+
+//获取用户流程明细流程图路由 
+#[get("/getflowdetailflowchart?<fprocinstid>")]
+pub async fn getFlowDetailFlowChart(fprocinstid: String, pool: &State<Pool>) -> Json<Value> {
+    let conn = pool.get().await.unwrap(); 
+     
+
+    //查询明细行费用报销单的数据数组
+   let flowDetailFlowChart: Vec<FlowDetailFlowChart> = conn
+        .query_collect(sql_bind!(
+            "SELECT * FROM getFlowDetailChart(@p1)",
+            &fprocinstid
+        ))
+        .await
+        .unwrap(); 
+    Json(serde_json::to_value(&flowDetailFlowChart).unwrap())
 
 }
 
